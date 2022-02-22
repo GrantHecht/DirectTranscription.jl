@@ -1,0 +1,13 @@
+name = "DirectTranscription"
+uuid = "a866afc0-0b0b-48cd-bd62-6b194cb7d0f2"
+authors = ["Grant Hecht"]
+version = "0.1.0"
+
+[compat]
+julia = "1.7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
