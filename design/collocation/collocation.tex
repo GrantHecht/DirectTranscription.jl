@@ -1,0 +1,287 @@
+\documentclass[]{article}
+
+% Packages
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+%\usepackage{mathptmx}
+\usepackage{xcolor}
+\usepackage{subfig}
+\usepackage{bm}
+\usepackage[scr]{rsfso}
+
+% Commands
+\newcommand{\Laplace}{\mathscr{L}}
+
+%opening
+\title{Collocation Design Document and Notes}
+\author{Grant Hecht}
+
+\begin{document}
+
+\maketitle
+
+\section{Transcription Method}
+\subsection{Runge-Kutta Methods}
+To begin, one-step methods called \textit{S-stage Runge-Kutta} can be defined as follow:
+\begin{equation}
+    \mathbf{y}_{k+1} = \mathbf{y}_k + h_k\sum_{j=1}^S \beta_j \mathbf{f}_{kj}
+\end{equation}
+where for $1 \leq j \leq S$
+\begin{align}
+    \mathbf{y}_{kj} &= \mathbf{y}_k + h_k \sum_{l=1}^S \alpha_{jl}\mathbf{f}_{kl} \\ 
+    \mathbf{f}_{kj} &= \mathbf{f}\left[\mathbf{y}_{kj},\mathbf{u}_{kj},t_{kj}\right] \\ 
+    \mathbf{u}_{kj} &= \mathbf{u}(t_{kj}) \\ 
+    t_{kj} &= t_k + h_k \rho_j \\ 
+    h_k &= t_{k+1} - t_k
+\end{align}
+$S$ is referred to as the ``stage'', and the intermediate values of $\mathbf{y}_{kj}$ called \textit{internal stages}. In these expressions, $\left\{\rho_j, \beta_j, \alpha_{jl}\right\}$ are known constants with $0\leq\rho_1\leq\rho_2\leq\cdots\leq\rho_S\leq1$. A common way to define the coefficients in to use the Butcher array 
+
+\[
+\begin{array}
+{c|cccc}
+\rho_1 & \alpha_{11} & \cdots & \alpha_{1S} \\
+\vdots & \vdots & & \vdots \\
+\rho_S & \alpha_{S1} & \cdots & \alpha_{SS} \\
+\hline
+& \beta_1 & \cdots & \beta_S
+\end{array}
+\]
+
+\noindent These schemes are called \textit{explicit} if $\alpha_{jl}=0$ for $l\geq j$ and \textit{implicit} otherwise.
+
+\subsection{Variable Phase Length}
+For many optimal control problems, it's convenient to break the problem into \textit{phases} either for numerical purposes or to describe different physical processes. In general, the length of a phase is defined by $t_I$ and $t_F$. Therefore, define a time transformation
+\begin{equation}
+    t = t_I + \tau (t_F - t_I) = t_I + \tau \sigma
+\end{equation}
+where the phase length $\sigma = t_F - t_I$ and $0 \leq \tau \leq 1$. Thus for $\Delta\tau_k = (\tau_{k+1} - \tau_k)$ we have
+\begin{equation}
+    h_k = (\tau_{k+1} - \tau_k)(t_F - t_I) = \Delta\tau_k \sigma
+\end{equation}
+With this transformation
+\begin{equation}
+    \mathbf{y}' = \frac{d\mathbf{y}}{d\tau} = \frac{d\mathbf{y}}{dt}\frac{dt}{d\tau}=\sigma \dot{\mathbf{y}}
+\end{equation}
+and the original ODE becomes
+\begin{equation}
+    \mathbf{y}' = \sigma \mathbf{f}\left[\mathbf{y}(\tau),\mathbf{u}(\tau),\tau\right]
+\end{equation}
+
+\subsection{Collocation Methods}
+Suppose we consider approximating the solution of the ODE by a function $\mathbf{z}(t)$, with components $z(t)$. As an approximation, let us use a polynomial of degree $S$ (order $S+1$) over each step $t_k \leq t \leq t_{k+1}$:
+\begin{equation}
+    z(t) = a_0 + a_1 (t - t_k) + \cdots + a_S (t - t_k)^S
+\end{equation}
+The coefficients ($a_0,a_1,\dots,a_S$) are chosen such that the approximation matches at the beginning of the step $t_k$, i.e., 
+\begin{equation}
+    z(t_k) = y_k
+\end{equation}
+and has derivatives that match at the internal stage points
+\begin{equation}
+    \frac{dz(t_{kj})}{dt} = f\left[\mathbf{y}_{kj},\mathbf{u}_{kj},t_{jk}\right] = f_{kj}
+    \label{eqn:collocation_cons}
+\end{equation}
+Observe that within a particular step $t_k \leq t \leq t_{k+1}$ the parameter $0 \leq \rho \leq 1$ defines the \textit{local} time parameterization $t = t_k + h_k\rho$ and so it follows that 
+\begin{equation}
+    z(t) = a_0 + a_1 h_k \rho_j + \cdots + a_S h_k^S\rho_j^S
+\end{equation}
+and similarly from
+\begin{equation}
+    \frac{dz(t)}{dt} = a_1 + \cdots + a_{S-1}(S-1)(t - t_k)^{S-2} + a_SS(t - t_k)^{S-1}
+\end{equation}
+substitution gives
+\begin{equation}
+    f_{kj} = a_1 + \cdots + a_{S-1}(S-1)h_k^{S-2}\rho_j^{S-2}+a_SSh_k^{S-1}\rho_j^{S-1}
+\end{equation}
+The conditions shown in Eq. \eqref{eqn:collocation_cons} are called \textit{collocation} conditions and the resulting method is referred to as a \textit{collocation method}.
+
+\noindent The focus of a collocation method is on a polynomial representation for the different state variables. When the state is a polynomial of degree $S$ over each step $t_k \leq t \leq t_{k+1}$ it is natural to use a polynomial approximation of degree $S-1$ for the algebraic variables $u(t)$, i.e., 
+\begin{equation}
+    \nu(t) = b_0 + b_1(t - t_k) + \cdots + b_{S-1}(t - t_k)^{S-1}
+\end{equation}
+for $j=0,\dots,S-1$ and the coefficients ($b_0,b_1,\dots,b_{S-1}$) are determined such that the approximation matches at the intermediate points for $j=1,\dots,S$
+\begin{equation}
+    \nu(t_{kj}) = \mathbf{u}_{kj}
+\end{equation}
+
+\subsubsection{Lobatto IIIA, S = 2}
+The simplest Lobatto IIIA method has two stages and is of order $\eta = 2$. It is commonly referred to as the \textit{trapezoidal method}. The nonlinear programming constraints, called defects, and the corresponding NLP variables are as follows: \vspace{2mm}
+
+\noindent Defect Constraints:
+\begin{equation}
+    \mathbf{0} = \boldsymbol{\zeta}_k = \mathbf{y}_{k+1} - \mathbf{y}_k - \frac{\Delta \tau_k}{2}\left[\sigma \mathbf{f}_k + \sigma \mathbf{f}_{k+1}\right]
+\end{equation}
+\vspace{2mm}
+
+\noindent variables
+\begin{equation}
+    \mathbf{x} = \begin{pmatrix}
+        \vdots \\ \mathbf{y}_k \\ \mathbf{u}_k \\ \mathbf{y}_{k+1} \\ \mathbf{u}_{k+1} \\ \vdots \\ \mathbf{p} \\ t_I \\ t_F \\ \vdots
+    \end{pmatrix}
+\end{equation}
+
+\subsubsection{Lobatto IIIA, S = 3}
+There are three common forms when there are three stages all having order $\eta = 4$. We abbreviate the primary form LA3. \vspace{2mm}
+
+\noindent Primary Form 
+
+\noindent Defect Constraints
+\begin{align}
+    \mathbf{0} &= \mathbf{y}_{k+1} - \mathbf{y}_k - \Delta \tau_k\left[\beta_1\sigma\mathbf{f}_k + \beta_2\sigma\mathbf{f}_{k2} + \beta_3\sigma\mathbf{f}_{k+1}\right] \\
+    \mathbf{0} &= \mathbf{y}_{k2} - \mathbf{y}_k - \Delta\tau_k\left[\alpha_{21}\sigma\mathbf{f}_k + \alpha_{22}\sigma\mathbf{f}_{k2} + \alpha_{23}\sigma\mathbf{f}_{k+1}\right]
+\end{align}
+where
+\begin{align}
+    \mathbf{f}_{k2} &= \mathbf{f}\left[\mathbf{y}_{k2},\mathbf{u}_{k2},t_{k2}\right] \\ 
+    t_{k2} &= t_k + h_k\rho_2 = t_k + \frac{1}{2}h_k \\ 
+    \mathbf{u}_{k2} &= \mathbf{u}(t_{k2})
+\end{align}
+\vspace{2mm}
+
+\noindent Variables 
+\begin{equation}
+    \mathbf{x} = \begin{pmatrix}
+        \vdots \\ \mathbf{y}_k \\ \mathbf{u}_k \\ \mathbf{y}_{k2} \\ \mathbf{u}_{k2} \\ \mathbf{y}_{k+1} \\ \mathbf{u}_{k+1} \\ \vdots \\ \mathbf{p} \\ t_I \\ t_F \\ \vdots
+    \end{pmatrix}
+\end{equation}
+\vspace{2mm}
+
+\noindent Hermite-Simpson (Separated):
+
+\noindent This method is referred to as \textit{Hermite-Simpson (Separated)} or \textit{Separated Simpson} and abbreviated HSS. \vspace{2mm}
+
+\noindent Defect Constraints
+\begin{align}
+    \mathbf{0} &= \mathbf{y}_{k+1} - \mathbf{y}_k - \Delta\tau_k\left[\beta_1\sigma\mathbf{f}_k + \beta_2\sigma\mathbf{f}_{k2}+ \beta_3\sigma\mathbf{f}_{k+1}\right] \\ 
+    \mathbf{0} &= \mathbf{y}_{k2} - \frac{1}{2}(\mathbf{y}_k + \mathbf{y}_{k+1}) - \frac{\Delta \tau_k}{8}(\sigma\mathbf{f}_k - \sigma\mathbf{f}_{k+1})
+\end{align}
+\vspace{2mm}
+
+\noindent Hermite-Simpson (Compressed):
+
+\noindent This method is referred to as \textit{Hermite-Simpson (Compressed)} or \textit{Compressed Simpson} and is abbreviated HSC.\vspace{2mm}
+
+\noindent Defect Constraints
+\begin{equation}
+    \mathbf{0} = \mathbf{y}_{k+1} - \mathbf{y}_k - \Delta\tau_k\left[\beta_1\sigma\mathbf{f}_k + \beta_2\sigma\mathbf{f}_{k2}+ \beta_3\sigma\mathbf{f}_{k+1}\right]
+\end{equation}
+where
+\begin{align}
+    \mathbf{y}_{k2} &= \frac{1}{2}(\mathbf{y}_k - \mathbf{y}_{k+1}) + \frac{h_k}{8}(\mathbf{f}_k - \mathbf{f}_{k+1}) \\ 
+    \mathbf{f}_{k2} &= \mathbf{f}\left[\mathbf{y}_{k2},\mathbf{u}_{k2},t_{k2}\right] \\ 
+    t_{k2} &= t_k + h_k\rho_2 = t_k + \frac{1}{2}h_k \\ 
+    \mathbf{u}_{k2} &= \mathbf{u}(t_{k2})
+\end{align}
+\vspace{2mm}
+
+\noindent Variables 
+\begin{equation}
+    \mathbf{x} = \begin{pmatrix}
+        \vdots \\ \mathbf{y}_k \\ \mathbf{u}_k \\ \mathbf{u}_{k2} \\ \mathbf{y}_{k+1} \\ \mathbf{u}_{k+1} \\ \vdots \\ \mathbf{p} \\ t_I \\ t_F \\ \vdots
+    \end{pmatrix}
+\end{equation}
+
+\subsubsection{Lobatto IIIA, S = 4}
+This sixth order scheme is abbreviated LA4.\vspace{2mm}
+
+\noindent Defect Constraints
+\begin{align}
+    \mathbf{0} &= \mathbf{y}_{k+1} - \mathbf{y}_k - \Delta\tau_k\left[\beta_1\sigma\mathbf{f}_k + \beta_2\sigma\mathbf{f}_{k2} + \beta_3\sigma\mathbf{f}_{k3} + \beta_4\sigma\mathbf{f}_{k+1}\right] \\ 
+    \mathbf{0} &= \mathbf{y}_{k2} - \mathbf{y}_k - \Delta\tau_k\left[\alpha_{21}\sigma\mathbf{f}_k + \alpha_{22}\sigma\mathbf{f}_{k2} + \alpha_{23}\sigma\mathbf{f}_{k3} + \alpha_{24}\sigma\mathbf{f}_{k+1}\right] \\ 
+    \mathbf{0} &= \mathbf{y}_{k3} - \mathbf{y}_k - \Delta\tau_k\left[\alpha_{31}\sigma\mathbf{f}_k + \alpha_{32}\sigma\mathbf{f}_{k2} + \alpha_{33}\sigma\mathbf{f}_{k3} + \alpha_{34}\sigma\mathbf{f}_{k+1}\right]
+\end{align}
+where
+\begin{align}
+    \mathbf{f}_{k2} &= \mathbf{f}\left[\mathbf{y}_{k2},\mathbf{u}_{k2},t_{k2}\right] \\ 
+    t_{k2} &= t_k + h_k\rho_2 \\ 
+    \mathbf{u}_{k2} &= \mathbf{u}(t_{k2}) \\ 
+    \mathbf{f}_{k3} &= \mathbf{f}\left[\mathbf{y}_{k3},\mathbf{u}_{k3},t_{k3}\right] \\ 
+    t_{k3} &= t_k + h_k\rho_3 \\ 
+    \mathbf{u}_{k3} &= \mathbf{u}(t_{k3})
+\end{align}
+\vspace{2mm}
+
+\noindent Variables 
+\begin{equation}
+    \mathbf{x} = \begin{pmatrix}
+        \vdots \\ \mathbf{y}_k \\ \mathbf{u}_k \\ \mathbf{y}_{k2} \\ \mathbf{u}_{k2} \\ \mathbf{y}_{k3} \\ \mathbf{u}_{k3} \\ \mathbf{y}_{k+1} \\ \mathbf{u}_{k+1} \\ \vdots \\ \mathbf{p} \\ t_I \\ t_F \\ \vdots
+    \end{pmatrix}
+\end{equation}
+
+\subsubsection{Lobatto IIIA, S = 5}
+This eighth order scheme is abbreviated LA5 \vspace{2mm} 
+
+\noindent Defect Constraints 
+\begin{align}
+    \mathbf{0} &= \mathbf{y}_{k+1} - \mathbf{y}_k - \Delta\tau_k\left[\beta_1\sigma\mathbf{f}_k + \beta_2\sigma\mathbf{f}_{k2} + \beta_3\sigma\mathbf{f}_{k3} + \beta_4\sigma\mathbf{f}_{k4} + \beta_5\sigma\mathbf{f}_{k+1}\right] \\ 
+    \mathbf{0} &= \mathbf{y}_{k2} - \mathbf{y}_k - \Delta\tau_k\left[\alpha_{21}\sigma\mathbf{f}_k + \alpha_{22}\sigma\mathbf{f}_{k2} + \alpha_{23}\sigma\mathbf{f}_{k3} + \alpha_{24}\sigma\mathbf{f}_{k4} + \alpha_{25}\sigma\mathbf{f}_{k+1}\right] \\ 
+    \mathbf{0} &= \mathbf{y}_{k3} - \mathbf{y}_k - \Delta\tau_k\left[\alpha_{31}\sigma\mathbf{f}_k + \alpha_{32}\sigma\mathbf{f}_{k2} + \alpha_{33}\sigma\mathbf{f}_{k3} + \alpha_{34}\sigma\mathbf{f}_{k4} + \alpha_{35}\sigma\mathbf{f}_{k+1}\right] \\ 
+    \mathbf{0} &= \mathbf{y}_{k4} - \mathbf{y}_k - \Delta\tau_k\left[\alpha_{41}\sigma\mathbf{f}_k + \alpha_{42}\sigma\mathbf{f}_{k2} + \alpha_{43}\sigma\mathbf{f}_{k3} + \alpha_{44}\sigma\mathbf{f}_{k4} + \alpha_{45}\sigma\mathbf{f}_{k+1}\right]
+\end{align}
+where
+\begin{align}
+    \mathbf{f}_{k2} &= \mathbf{f}\left[\mathbf{y}_{k2},\mathbf{u}_{k2},t_{k2}\right] \\ 
+    t_{k2} &= t_k + h_k\rho_2 \\ 
+    \mathbf{u}_{k2} &= \mathbf{u}(t_{k2}) \\ 
+    \mathbf{f}_{k3} &= \mathbf{f}\left[\mathbf{y}_{k3},\mathbf{u}_{k3},t_{k3}\right] \\ 
+    t_{k3} &= t_k + h_k\rho_3 \\ 
+    \mathbf{u}_{k3} &= \mathbf{u}(t_{k3}) \\ 
+    \mathbf{f}_{k4} &= \mathbf{f}\left[\mathbf{y}_{k4},\mathbf{u}_{k4},t_{k4}\right] \\ 
+    t_{k4} &= t_k + h_k\rho_4 \\ 
+    \mathbf{u}_{k4} &= \mathbf{u}(t_{k4}) 
+\end{align}
+\vspace{2mm}
+
+\noindent Variables 
+\begin{equation}
+    \mathbf{x} = \begin{pmatrix}
+        \vdots \\ \mathbf{y}_k \\ \mathbf{u}_k \\ \mathbf{y}_{k2} \\ \mathbf{u}_{k2} \\ \mathbf{y}_{k3} \\ \mathbf{u}_{k3} \\ \mathbf{y}_{k4} \\ \mathbf{u}_{k4} \\ \mathbf{y}_{k+1} \\ \mathbf{u}_{k+1} \\ \vdots \\ \mathbf{p} \\ t_I \\ t_F \\ \vdots
+    \end{pmatrix}
+\end{equation}
+
+\subsubsection{Quadrature Equations}
+The IRK methods provide a way to solve ODE's. When dealing with problems involving integral expressions such as 
+\begin{equation}
+    \mathcal{I} \int_{t_I}^{t_F}\mathbf{w}\left[\mathbf{y}(t),\mathbf{u}(t),t\right]dt
+\end{equation}
+it's common to introduce new dynamic variables $\mathbf{r}(t)$ and then solve the following augmented system:
+\begin{align}
+    \dot{\mathbf{y}} &= \mathbf{f}\left[\mathbf{y}(t),\mathbf{u}(t),t\right] \\ 
+    \dot{\mathbf{r}} &= \mathbf{w}\left[\mathbf{y}(t),\mathbf{u}(t),t\right]
+\end{align}
+in conjunction with the initial condition $\mathbf{r}(t_I)=0$. It then follows that 
+\begin{equation}
+    \mathbf{r}(t_F) = \mathcal{I}
+\end{equation}
+If we apply a recursive scheme to the augmented system we can write 
+\begin{equation}
+    \mathbf{r}(t_F) = \mathbf{r}_M = \sum_{k=1}^{M-1}\left(\mathbf{r}_{k+1} - \mathbf{r}_k\right)
+\end{equation}
+It then follows that 
+\begin{equation}
+    \mathbf{r}_{k+1} - \mathbf{r}_k =
+    \left\{ \begin{array}{ll}
+        \Delta\tau_k\left[\beta_1\sigma\mathbf{w}_k + \beta_2\sigma\mathbf{w}_{k+1}\right] & S = 2 \\
+        \Delta\tau_k\left[\beta_1\sigma\mathbf{w}_k + \beta_2\sigma\mathbf{w}_{k2} + \beta_3\sigma\mathbf{w}_{k+1}\right] & S = 3 \\ 
+        \Delta\tau_k\left[\beta_1\sigma\mathbf{w}_k + \beta_2\sigma\mathbf{w}_{k2} + \beta_3\sigma\mathbf{w}_{k3} + \beta_4\sigma\mathbf{w}_{k+1}\right] & S = 4 \\ 
+        \Delta\tau_k\left[\beta_1\sigma\mathbf{w}_k + \beta_2\sigma\mathbf{w}_{k2} + \beta_3\sigma\mathbf{w}_{k3} + \beta_4\sigma\mathbf{w}_{k4} + \beta_5\sigma\mathbf{w}_{k+1}\right] & S = 5
+    \end{array} \right.
+\end{equation}
+
+\section{Nonlinear Programming}
+The general nonlinear programming (NLP) problem can be stated as follows: Find the $n$-vector $\textit{x}^T=(x_1,\dots,x_n)$ to minimize the scalar objective function 
+\begin{equation}
+    F(\mathbf{x})
+\end{equation}
+subject to the $m$ constraints
+\begin{equation}
+    \mathbf{c}_L \leq \mathbf{c}(\mathbf{x}) \leq \mathbf{c}_U
+\end{equation}
+and simple bounds 
+\begin{equation}
+    \mathbf{x}_L \leq \mathbf{x} \leq \mathbf{x}_U
+\end{equation}
+
+\end{document}
