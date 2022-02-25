@@ -1,6 +1,6 @@
 # Path function wrapper that uses automatic differentiation to 
 # compute Jacobians
-mutable struct ADPathFunction{type, PFT<:Function, SJC, CJC, STJC, TJC} <: PathFunction{type}
+struct ADPathFunction{type, PFT<:Function, SJC, CJC, STJC, TJC} <: PathFunction{type}
     # User defined function
     func!::PFT # SHould be of the form f!(out, x, u, p, t)
 
