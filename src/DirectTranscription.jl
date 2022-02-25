@@ -19,7 +19,7 @@ include("UserFunctionUtils/ADPathFunction.jl")
 include("UserFunctionUtils/AnalyticPathFunction.jl")
 export PathFunction
 
-# Conditionally load Snopt 
+# Conditionally use Snopt 
 function __init__()
     @require Snopt="0e9dc826-d618-11e8-1f57-c34e87fde2c0" include("NLPUtils/snopt.jl")
 end

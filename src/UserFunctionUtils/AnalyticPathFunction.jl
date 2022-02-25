@@ -3,7 +3,7 @@
 # need to be the case as long as each entry in each Jacobian is provided
 # (i.e., FiniteDiff could be used internally for the time Jacobian while
 # all other Jacobian's are analytic).
-mutable struct AnalyticPathFunction{type, PFT<:Function, SJT, CJT, STJT, TJT} <: PathFunction{type}
+struct AnalyticPathFunction{type, PFT<:Function, SJT, CJT, STJT, TJT} <: PathFunction{type}
     # User defined function
     func!::PFT # Should be of the form f!(out, x, u, p, t)
 
