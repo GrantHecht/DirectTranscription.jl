@@ -30,18 +30,10 @@ function EvaluateFunction(pf::PathFunction,
 end
 
 # Get number of parameters methods
-function GetNumberOfFunctions(pf::PathFunction)
-    return pf.nFuncs
-end
-function GetNumberOfStates(pf::PathFunction)
-    return pf.nStates
-end
-function GetNumberOfControls(pf::PathFunction)
-    return pf.nControls
-end
-function GetNumberOfStatics(pf::PathFunction)
-    return pf.nStatic
-end
+GetNumberOfFunctions(pf::PathFunction)  = pf.nFuncs
+GetNumberOfStates(pf::PathFunction)     = pf.nStates
+GetNumberOfControls(pf::PathFunction)   = pf.nControls
+GetNumberOfStatics(pf::PathFunction)    = pf.nStatic
 
 # Function name methods
 function SetFunctionNames!(pf::PathFunction, names::Vector{String})
@@ -51,20 +43,16 @@ function SetFunctionNames!(pf::PathFunction, names::Vector{String})
     return nothing
 end
 
-function GetFunctionNames(pf::PathFunction)
-    return pf.funcNames
+# Evaluate jacobian function
+function EvaluateJacobian(jacType::JacobianType, fp::PathFunction,
+    jac, state, control, static, time)
+    error("EvaluateJacobian method not defined for " * 
+        string(typeof(pf)) * " with JacobianType " * 
+        string(typeof(JacobianType)) * "!")
 end
 
 # Get Jacobian Sparsity Methods
-function GetJacobianSparsity(jacType::State, pf::PathFunction)
-    return pf.stateSP 
-end
-function GetJacobianSparsity(jacType::Control, pf::PathFunction)
-    return pf.controlSP
-end
-function GetJacobianSparsity(jacType::Static, pf::PathFunction)
-    return pf.staticSP
-end
-function GetJacobianSparsity(jacType::Time, pf::PathFunction)
-    return pf.timeSP
-end
+GetJacobianSparsity(jacType::State, pf::PathFunction)   = pf.stateSP 
+GetJacobianSparsity(jacType::Control, pf::PathFunction) = pf.controlSP
+GetJacobianSparsity(jacType::Static, pf::PathFunction)  = pf.staticSP
+GetJacobianSparsity(jacType::Time, pf::PathFunction)    = pf.timeSP
