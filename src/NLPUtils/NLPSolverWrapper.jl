@@ -6,6 +6,8 @@ SetInitialGuess!(wrapper::NLPSolverWrapper, args...) =
     error("GetInitialGuess! not defined for " * typeof(wrapper))
 Optimize!(wrapper::NLPSolverWrapper) = 
     error("Optimize! not defined for " * typeof(wrapper))
+GetSolution(wrapper::NLPSolverWrapper) = 
+    error("GetSolution not defined for " * typeof(wrapper))
 SetStringOption!(wrapper::NLPSolverWrapper, args...) = 
     error("SetStringOption! not defined for " * typeof(wrapper))
 SetIntOption!(wrapper::NLPSolverWrapper, args...) = 

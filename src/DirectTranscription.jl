@@ -11,6 +11,7 @@ using Symbolics: jacobian_sparsity
 # Include utilities
 include("Utils/typeFlags.jl")
 include("Utils/sparseMatrixUtils.jl")
+include("Utils/dictUtils.jl")
 export Dynamics, Cost, Algebraic
 
 # User function utilities

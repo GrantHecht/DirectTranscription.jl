@@ -69,8 +69,29 @@ wrapper = DirectTranscription.IpoptWrapper(eval_f, eval_g!,
 # Set initial guess
 DirectTranscription.SetInitialGuess!(wrapper, [1.0, 5.0, 5.0, 1.0])
 
+# Set options 
+DirectTranscription.SetFloatOption!(wrapper, "tol", 1e-10)
+DirectTranscription.SetIntOption!(wrapper, "print_level", 1)
+DirectTranscription.SetStringOption!(wrapper, "check_derivatives_for_naninf", "yes")
+
 # Optimize 
 @suppress DirectTranscription.Optimize!(wrapper)
 
 # Check optimization results 
-@test wrapper.prob.x ≈ [0.9999999900091949, 4.742999643601108, 3.8211499789170844, 1.3794082932197205]
+@test DirectTranscription.GetSolution(wrapper) ≈ 
+    [0.9999999900091949, 4.742999643601108, 3.8211499789170844, 1.3794082932197205]
+
+# Reset wrapper 
+DirectTranscription.ResetIpoptWrapper!(wrapper, eval_f, eval_g!, 
+    eval_grad_f!, eval_jac_g!, n, x_L, x_U, m, g_L, g_U, 8)
+
+# Set initial guess
+DirectTranscription.SetInitialGuess!(wrapper, [1.0, 5.0, 5.0, 1.0])
+
+# Optimize 
+@suppress DirectTranscription.Optimize!(wrapper)
+
+# Check optimization results 
+@test DirectTranscription.GetSolution(wrapper) ≈ 
+    [0.9999999900091949, 4.742999643601108, 3.8211499789170844, 1.3794082932197205]
+

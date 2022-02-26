@@ -1,10 +1,18 @@
 
-struct IpoptWrapper <: NLPSolverWrapper
+mutable struct IpoptWrapper <: NLPSolverWrapper
     # Ipopt problem
     prob::IpoptProblem
 
-    # Options dictionary
-    options::Dict
+    # Initial guess set flag 
+    initGuessSet::Bool 
+
+    # Has optimized flag 
+    hasOptimized::Bool
+
+    # User options
+    strOpts::Dict{String,String}
+    intOpts::Dict{String,Int64}
+    numOpts::Dict{String,Float64}
 end
 
 # Function evaluations should use a different update such that the NLP is not reevaluated
@@ -42,16 +50,21 @@ function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function,
     # Set hessian approximation (required unless we decide to support hessian computation)
     Ipopt.AddIpoptStrOption(prob, "hessian_approximation", "limited-memory")
 
-    # Create options Dict (For resetting user options durring problem recreation after mesh refinement)
-    options = Dict("hessian_approximation" => "limited-memory")
+    # Create string options (For resetting user options durring problem recreation after mesh refinement)
+    strOpts = Dict("hessian_approximation" => "limited-memory")
+
+    # Create integer and floating point options 
+    intOpts = Dict{String,Int64}()
+    numOpts = Dict{String,Float64}()
 
     # Craete Ipopt Wrapper 
-    return IpoptWrapper(prob, options)
+    return IpoptWrapper(prob, false, false, strOpts, intOpts, numOpts)
 end
 
 function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function, 
     jacgeval!::Function, n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
-    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, options::Dict)
+    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, 
+    options::Dict{String,T}) where {T}
 
     # Create Ipopt problem
     prob = Ipopt.CreateIpoptProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, 0, 
@@ -61,8 +74,59 @@ function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function,
     # Set options 
     SetOptions!(prob, options)
 
+    # Get concrete dictionaries
+    strDict, intDict, numDict = ConcreteDicts(options)
+
     # Create IpoptWrapper 
-    return IpoptWrapper(prob, options)
+    return IpoptWrapper(prob, false, false, strDict, intDict, numDict)
+end
+
+function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function, 
+    jacgeval!::Function, n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
+    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, 
+    strOpts::Dict{String,String}, intOpts::Dict{String,Int64}, numOpts::Dict{String,Float64})
+
+    # Create Ipopt problem
+    prob = Ipopt.CreateIpoptProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, 0, 
+            feval, (x,g) -> geval!(g,x), (x,grad) -> gradfeval!(grad,x), 
+            (x,rows,cols,values) -> jacgeval!(values,rows,cols,x), (args...) -> false)
+
+    # Set options 
+    SetOptions!(prob, strOpts)
+    SetOptions!(prob, intOpts)
+    SetOptions!(prob, numOpts)
+
+    # Create IpoptWrapper 
+    return IpoptWrapper(prob, false, false, strOpts, intOpts, numOpts)
+end
+
+function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function, 
+    jacgeval!::Function, n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
+    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, wrapper::IpoptWrapper)
+        return IpoptWrapper(feval, geval!, gradfeval!, jacgeval!, n, x_L, x_U,
+            m, g_L, g_U, nele_jac, wrapper.strOpts, wrapper.intOpts, wrapper.numOpts)
+end
+
+# Function to reset Ipopt optimizer after mesh refinement
+function ResetIpoptWrapper!(wrapper::IpoptWrapper, feval::Function, geval!::Function, gradfeval!::Function, 
+    jacgeval!::Function, n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
+    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int)
+
+    # Create new Ipopt problem
+    wrapper.prob = Ipopt.CreateIpoptProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, 0, 
+            feval, (x,g) -> geval!(g,x), (x,grad) -> gradfeval!(grad,x), 
+            (x,rows,cols,values) -> jacgeval!(values,rows,cols,x), (args...) -> false)
+
+    # Reset flags 
+    wrapper.initGuessSet = false
+    wrapper.hasOptimized = false
+
+    # Set options
+    SetOptions!(wrapper.prob, wrapper.strOpts)
+    SetOptions!(wrapper.prob, wrapper.intOpts)
+    SetOptions!(wrapper.prob, wrapper.numOpts)
+
+    return nothing
 end
 
 function SetInitialGuess!(wrapper::IpoptWrapper, x::Vector{Float64})
@@ -70,37 +134,51 @@ function SetInitialGuess!(wrapper::IpoptWrapper, x::Vector{Float64})
         error("Decision vector guess passed to SetInitialGuess! with incorrect length!")
     end
     @inbounds wrapper.prob.x .= x
+    wrapper.initGuessSet = true
     return nothing
 end
 
 function Optimize!(wrapper::IpoptWrapper)
     @warn "Optimize!(wrapper::IpoptWrapper does not do anything after solving!"
-    solvestat = Ipopt.IpoptSolve(wrapper.prob)
+    if wrapper.initGuessSet
+        solvestat = Ipopt.IpoptSolve(wrapper.prob)
+    else
+        error("In Optimize!(wrapper::IpoptWrapper), cannot optimize without setting initial guess!")
+    end
+    wrapper.hasOptimized = true
+end
+
+function GetSolution(wrapper::IpoptWrapper)
+    if wrapper.hasOptimized == true
+        sol = wrapper.prob.x
+    else
+        error("In GetSolution(wrapper::IpoptWrapper), cannot get solution before optimization!")
+    end
+    return sol
 end
 
 function SetStringOption!(wrapper::IpoptWrapper, str1::String, str2::String)
-    push!(wrapper.options, str1 => str2)
+    push!(wrapper.strOpts, str1 => str2)
     Ipopt.AddIpoptStrOption(wrapper.prob, str1, str2)
     return nothing
 end
 
-function SetIntOption!(wrapper::IpoptWrapper, str::String, int::Int)
-    push!(wrapper.options, str => int)
+function SetIntOption!(wrapper::IpoptWrapper, str::String, int::Int64)
+    push!(wrapper.intOpts, str => int)
     Ipopt.AddIpoptIntOption(wrapper.prob, str, int)
     return nothing
 end
 
-function SetFloatOption!(wrapper::IpoptWrapper, str::String, float::AbstractFloat)
-    push!(wrapper.options, str => float)
+function SetFloatOption!(wrapper::IpoptWrapper, str::String, float::Float64)
+    push!(wrapper.numOpts, str => float)
     Ipopt.AddIpoptNumOption(wrapper.prob, str, float)
     return nothing
 end
 
 # Functions to set options via dictionary
-function SetOptions!(prob::IpoptProblem, options::Dict)
+function SetOptions!(prob::IpoptProblem, options::Dict{String,Any})
     # Itterate through keys in options
     for key in keys(options)
-
         # Get value of key
         value = options[key]
 
@@ -114,6 +192,24 @@ function SetOptions!(prob::IpoptProblem, options::Dict)
         else
             error("Option " * key * " passed with value of invalid type " * typeof(value))
         end
+    end
+end
+function SetOptions!(prob::IpoptProblem, options::Dict{String,String})
+    # Itterate through keys in options 
+    for key in keys(options)
+        Ipopt.AddIpoptStrOption(prob, key, options[key])
+    end
+end
+function SetOptions!(prob::IpoptProblem, options::Dict{String,Int64})
+    # Itterate through keys in options 
+    for key in keys(options)
+        Ipopt.AddIpoptIntOption(prob, key, options[key])
+    end
+end
+function SetOptions!(prob::IpoptProblem, options::Dict{String,Float64})
+    # Itterate through keys in options 
+    for key in keys(options)
+        Ipopt.AddIpoptNumOption(prob, key, options[key])
     end
 end
 SetOptions!(wrapper::IpoptWrapper, options::Dict) = SetOptions!(wrapper.prob, options)
