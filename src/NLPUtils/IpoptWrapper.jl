@@ -30,17 +30,23 @@ end
     - gradfeval!::Function : Evaluates gradient of objective function. In the form gradfeval!(grad,x), mutates grad 
     - jacgeval!::Function : Evaluates Jacobian of constraints. In the form jacgeval(values,rows,cols,x), mutates 
                             values, rows, and cols. Values::Union{Nothing,Vector{Float64}}
-    - n::Int : Number of decision variables
     - x_L::Vector{Float64} : Lower bounds on decision variables 
     - x_U::Vector{Float64} : Upper bounds on decision variables 
-    - m::Int : Number of constraint functions 
     - g_L::Vector{Float64} : Lower bounds on constraints 
     - g_U::Vector{Float64} : Upper bounds on constriants
     - nele_jac::Int : Number of non-zero elements in the Jacobian
 """
 function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function, 
-    jacgeval!::Function, n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
-    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int)
+    jacgeval!::Function, x_L::Vector{Float64}, x_U::Vector{Float64},
+    g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int)
+
+    # Check length of decision vector bounds 
+    n = length(x_L)
+    n == length(x_U) ? () : error("In IpoptWrapper, x_L and x_U must be of the same length!")
+
+    # Check length of constraint vector bounds
+    m = length(g_L)
+    m == length(g_U) ? () : error("In IpoptWrapper, g_L and g_U must be of the same length")
 
     # Create Ipopt problem
     prob = Ipopt.CreateIpoptProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, 0, 
@@ -62,9 +68,17 @@ function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function,
 end
 
 function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function, 
-    jacgeval!::Function, n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
-    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, 
+    jacgeval!::Function, x_L::Vector{Float64}, x_U::Vector{Float64},
+    g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, 
     options::Dict{String,T}) where {T}
+
+    # Check length of decision vector bounds 
+    n = length(x_L)
+    n == length(x_U) ? () : error("In IpoptWrapper, x_L and x_U must be of the same length!")
+
+    # Check length of constraint vector bounds
+    m = length(g_L)
+    m == length(g_U) ? () : error("In IpoptWrapper, g_L and g_U must be of the same length")
 
     # Create Ipopt problem
     prob = Ipopt.CreateIpoptProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, 0, 
@@ -82,9 +96,17 @@ function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function,
 end
 
 function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function, 
-    jacgeval!::Function, n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
-    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, 
+    jacgeval!::Function, x_L::Vector{Float64}, x_U::Vector{Float64},
+    g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, 
     strOpts::Dict{String,String}, intOpts::Dict{String,Int64}, numOpts::Dict{String,Float64})
+
+    # Check length of decision vector bounds 
+    n = length(x_L)
+    n == length(x_U) ? () : error("In IpoptWrapper, x_L and x_U must be of the same length!")
+
+    # Check length of constraint vector bounds
+    m = length(g_L)
+    m == length(g_U) ? () : error("In IpoptWrapper, g_L and g_U must be of the same length")
 
     # Create Ipopt problem
     prob = Ipopt.CreateIpoptProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, 0, 
@@ -101,16 +123,25 @@ function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function,
 end
 
 function IpoptWrapper(feval::Function, geval!::Function, gradfeval!::Function, 
-    jacgeval!::Function, n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
-    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, wrapper::IpoptWrapper)
-        return IpoptWrapper(feval, geval!, gradfeval!, jacgeval!, n, x_L, x_U,
-            m, g_L, g_U, nele_jac, wrapper.strOpts, wrapper.intOpts, wrapper.numOpts)
+    jacgeval!::Function, x_L::Vector{Float64}, x_U::Vector{Float64},
+    g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int, wrapper::IpoptWrapper)
+
+    return IpoptWrapper(feval, geval!, gradfeval!, jacgeval!, x_L, x_U,
+        g_L, g_U, nele_jac, wrapper.strOpts, wrapper.intOpts, wrapper.numOpts)
 end
 
 # Function to reset Ipopt optimizer after mesh refinement
 function ResetIpoptWrapper!(wrapper::IpoptWrapper, feval::Function, geval!::Function, gradfeval!::Function, 
-    jacgeval!::Function, n::Int, x_L::Vector{Float64}, x_U::Vector{Float64},
-    m::Int, g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int)
+    jacgeval!::Function, x_L::Vector{Float64}, x_U::Vector{Float64},
+    g_L::Vector{Float64}, g_U::Vector{Float64}, nele_jac::Int)
+
+    # Check length of decision vector bounds 
+    n = length(x_L)
+    n == length(x_U) ? () : error("In ResetIpoptWrapper!, x_L and x_U must be of the same length!")
+
+    # Check length of constraint vector bounds
+    m = length(g_L)
+    m == length(g_U) ? () : error("In ResetIpoptWrapper!, g_L and g_U must be of the same length")
 
     # Create new Ipopt problem
     wrapper.prob = Ipopt.CreateIpoptProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, 0, 
@@ -139,13 +170,12 @@ function SetInitialGuess!(wrapper::IpoptWrapper, x::Vector{Float64})
 end
 
 function Optimize!(wrapper::IpoptWrapper)
-    @warn "Optimize!(wrapper::IpoptWrapper does not do anything after solving!"
     if wrapper.initGuessSet
         solvestat = Ipopt.IpoptSolve(wrapper.prob)
+        wrapper.hasOptimized = true
     else
         error("In Optimize!(wrapper::IpoptWrapper), cannot optimize without setting initial guess!")
     end
-    wrapper.hasOptimized = true
 end
 
 function GetSolution(wrapper::IpoptWrapper)
@@ -193,6 +223,7 @@ function SetOptions!(prob::IpoptProblem, options::Dict{String,Any})
             error("Option " * key * " passed with value of invalid type " * typeof(value))
         end
     end
+    return nothing
 end
 function SetOptions!(prob::IpoptProblem, options::Dict{String,String})
     # Itterate through keys in options 

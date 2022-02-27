@@ -64,7 +64,7 @@ g_U = [2.0e19, 40.0]
 
 # Create IpoptWrapper
 wrapper = DirectTranscription.IpoptWrapper(eval_f, eval_g!, 
-    eval_grad_f!, eval_jac_g!, n, x_L, x_U, m, g_L, g_U, 8)
+    eval_grad_f!, eval_jac_g!, x_L, x_U, g_L, g_U, 8)
 
 # Set initial guess
 DirectTranscription.SetInitialGuess!(wrapper, [1.0, 5.0, 5.0, 1.0])
@@ -83,7 +83,7 @@ DirectTranscription.SetStringOption!(wrapper, "check_derivatives_for_naninf", "y
 
 # Reset wrapper 
 DirectTranscription.ResetIpoptWrapper!(wrapper, eval_f, eval_g!, 
-    eval_grad_f!, eval_jac_g!, n, x_L, x_U, m, g_L, g_U, 8)
+    eval_grad_f!, eval_jac_g!, x_L, x_U, g_L, g_U, 8)
 
 # Set initial guess
 DirectTranscription.SetInitialGuess!(wrapper, [1.0, 5.0, 5.0, 1.0])

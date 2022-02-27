@@ -25,3 +25,17 @@ function ConcreteDicts(options::Dict{String,Any})
     return (strDict, intDict, numDict)
 end
 
+function CombineDicts(strDict::Dict{String,String},intDict::Dict{String,Int},numDict::Dict{String,Float64})
+    cDict = Dict{String,Any}()
+    for key in keys(strDict)
+        push!(cDict, key => strDict[key])
+    end
+    for key in keys(intDict)
+        push!(cDict, key => intDict[key])
+    end
+    for key in keys(numDict)
+        push!(cDict, key => numDict[key])
+    end
+
+    return cDict
+end
