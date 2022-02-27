@@ -20,6 +20,10 @@ include("UserFunctionUtils/ADPathFunction.jl")
 include("UserFunctionUtils/AnalyticPathFunction.jl")
 export PathFunction
 
+# Collocation utilities 
+include("CollocationUtils/ImplicitRungeKutta.jl")
+include("CollocationUtils/LobattoIIIA.jl")
+
 # NLP utilities
 include("NLPUtils/NLPSolverWrapper.jl")
 include("NLPUtils/IpoptWrapper.jl")
