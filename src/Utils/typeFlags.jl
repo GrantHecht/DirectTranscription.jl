@@ -11,3 +11,7 @@ struct State <: JacobianType end
 struct Control <: JacobianType end 
 struct Time <: JacobianType end 
 struct Static <: JacobianType end
+
+# Transcription types 
+abstract type TranscriptionType end
+struct ImplicitRK <: TranscriptionType end

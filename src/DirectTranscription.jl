@@ -13,16 +13,29 @@ include("Utils/typeFlags.jl")
 include("Utils/sparseMatrixUtils.jl")
 include("Utils/dictUtils.jl")
 export Dynamics, Cost, Algebraic
+export ImplicitRK
 
 # User function utilities
 include("UserFunctionUtils/PathFunction.jl")
 include("UserFunctionUtils/ADPathFunction.jl")
 include("UserFunctionUtils/AnalyticPathFunction.jl")
-export PathFunction
+include("UserFunctionUtils/PathFunctionSet.jl")
+export PathFunction, PathFunctionSet
+
+# Collocation utilities 
+include("CollocationUtils/ImplicitRungeKutta.jl")
+include("CollocationUtils/LobattoIIIA.jl")
+include("CollocationUtils/NLPFunctionData.jl")
+include("CollocationUtils/CollocationManager.jl")
+include("CollocationUtils/ImplicitRKCollocationManager.jl")
 
 # NLP utilities
 include("NLPUtils/NLPSolverWrapper.jl")
 include("NLPUtils/IpoptWrapper.jl")
+
+include("Phase.jl")
+include("ImplicitRKPhase.jl")
+export Phase
 
 # Conditionally use Snopt 
 function __init__()
