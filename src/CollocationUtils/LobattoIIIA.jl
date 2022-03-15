@@ -1,11 +1,8 @@
-struct LobattoIIIA <: ImplicitRungeKutta
+mutable struct LobattoIIIA <: ImplicitRungeKutta
     # Butcher array componants 
     rhoVec::Vector{Float64}
     alphaMat::Matrix{Float64}
     betaVec::Vector{Float64}
-
-    # LobattoIIIA order 
-    order::Int
 
     # Number of defect constraints 
     numDefectCons::Int
@@ -41,7 +38,7 @@ struct LobattoIIIA <: ImplicitRungeKutta
         numStateStagePointsPerMesh, numControlStagePointsPerMesh = 
             InitializeLobattoIIIAData(order, rhoVec, betaVec, alphaMat)
 
-        return new(rhoVec, alphaMat, betaVec, order, numDefectCons, stageTimes, paramDepMat, funcConstMat,
+        return new(rhoVec, alphaMat, betaVec, numDefectCons, stageTimes, paramDepMat, funcConstMat,
             numPointsPerStep, numStagePointsPerMesh, numStateStagePointsPerMesh, numControlStagePointsPerMesh)
     end
 end
