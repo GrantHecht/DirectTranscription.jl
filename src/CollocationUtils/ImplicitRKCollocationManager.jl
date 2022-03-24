@@ -124,9 +124,9 @@ function CollocationManager(type::ImplicitRK, meshIntervalFractions::Vector{Floa
         numStagePoints, numStagePointsPerMesh, timeVector, Δt, phaseNum, relTol, quadratureWeights, false, false)
 end
 
-# Get the number of discretization points in the phase
-function GetNumberOfDiscretizationPoints(irkMan::ImplicitRKCollocationManager)
-    return length(irkMan.discretizationPoints)
-end
+# Get discretization points
+GetDiscretizationPoints(irkMan::ImplicitRKCollocationManager) = irkMan.discretizationPoints
 
-# Get view of the state vector at y_{i,j}, mesh point i and stage point j
+# Get the number of discretization points in the phase
+GetNumberOfDiscretizationPoints(irkMan::ImplicitRKCollocationManager) = length(irkMan.discretizationPoints)
+

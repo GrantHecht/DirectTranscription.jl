@@ -44,3 +44,9 @@ finalGuessState     = [2.0, -1.0, -1.0]
 controlLowerBound   = [-10.0]
 controlUpperBound   = [10.0]
 
+# Set bounds and initial guess information
+SetStateBounds!(phase, stateUpperBound, stateLowerBound)
+SetControlBounds!(phase, controlUpperBound, controlLowerBound)
+SetTimeBounds!(phase, timeUpperBound, timeLowerBound)
+SetTimeGuess!(phase, initialGuessTime, finalGuessTime)
+SetLinearStateNoControlGuess!(phase, initialGuessState, finalGuessState)

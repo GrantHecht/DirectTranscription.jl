@@ -40,7 +40,10 @@ include("NLPUtils/IpoptWrapper.jl")
 include("DecisionVector.jl")
 include("Phase.jl")
 include("ImplicitRKPhase.jl")
-export Phase
+export Phase, SetStateBounds!, SetControlBounds!, SetStaticBounds!,
+    SetTimeBounds!, SetTimeGuess!, SetStaticGuess!, 
+    SetLinearStateConstantControlGuess!, SetLinearStateNoControlGuess!,
+    SetLinearStateUnityControlGuess!
 
 # Conditionally use Snopt 
 function __init__()

@@ -218,7 +218,50 @@ function SetStaticGuess!(dv::DecisionVector, p)
     return nothing
 end
 
-# Get view of the state vector at y_{i,j}, mesh point i and stage point j
-function GetStateView(dv::DecisionVector, i, j)
-    
+# Set state at discretization point i
+function SetStateAtDiscretizationPoint!(dv::DecisionVector, x, i)
+    # Check that state is the correct length 
+    if length(x) != dv.nStates 
+        error("In SetStateAtDiscretizationPoint, state passed with incorrect length.")
+    end
+
+    # Check that discretization point has a state 
+    if dv.stateDiscretizationPoints[i] == true
+        # Compute starting idx
+        @views idxi = dv.nStates*sum(dv.stateDiscretizationPoints[1:i - 1]) + 
+                      dv.nControls*sum(dv.controlDiscretizationPoints[1:i - 1]) + 1
+        idxf        = idxi + dv.nStates - 1
+
+        # Set state 
+        dv.decisionVector[idxi:idxf] .= x
+    end
+end
+
+# Set control at discretization point i
+function SetControlAtDiscretizationPoint!(dv::DecisionVector, u, i)
+    # Check that control is the correct length 
+    if length(u) != dv.nControls
+        error("In SetStateAtDiscretizationPoint, control passed with incorrect length.")
+    end
+
+    # Check that discretization point has control
+    if dv.controlDiscretizationPoints[i] == true
+        # Compute starting idx
+        @views idxi = dv.nStates*sum(dv.stateDiscretizationPoints[1:i]) + 
+                      dv.nControls*sum(dv.controlDiscretizationPoints[1:i - 1]) + 1
+        idxf        = idxi + dv.nControls - 1
+
+        # Set state 
+        dv.decisionVector[idxi:idxf] .= u
+    end
+end
+
+# Set state and control guess are set
+function SetStateAndControlGuessSet!(dv::DecisionVector)
+    dv.stateGuessSet = true 
+    dv.controlGuessSet = true
+
+    # Check initialization
+    CheckIfInitialized!(dv)
+    return nothing
 end
