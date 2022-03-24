@@ -1,1 +1,1 @@
-abstract type CollocationManager end
+abstract type CollocationManager <: TranscriptionManager end

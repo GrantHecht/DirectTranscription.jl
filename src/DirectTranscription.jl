@@ -22,6 +22,9 @@ include("UserFunctionUtils/AnalyticPathFunction.jl")
 include("UserFunctionUtils/PathFunctionSet.jl")
 export PathFunction, PathFunctionSet
 
+# Transcription manager abstract type 
+include("TranscriptionManager.jl")
+
 # Collocation utilities 
 include("CollocationUtils/ImplicitRungeKutta.jl")
 include("CollocationUtils/LobattoIIIA.jl")
@@ -33,6 +36,8 @@ include("CollocationUtils/ImplicitRKCollocationManager.jl")
 include("NLPUtils/NLPSolverWrapper.jl")
 include("NLPUtils/IpoptWrapper.jl")
 
+# Base includes
+include("DecisionVector.jl")
 include("Phase.jl")
 include("ImplicitRKPhase.jl")
 export Phase
