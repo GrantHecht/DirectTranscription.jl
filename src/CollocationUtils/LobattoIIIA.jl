@@ -286,3 +286,11 @@ function InitializeLobattoIIIAData(order, rhoVec, betaVec, alphaMat)
     return (numDefectCons, stageTimes, paramDepMat, funcConstMat, numPointsPerStep, numStagePointsPerMesh,
         numStateStagePointsPerMesh, numControlStagePointsPerMesh)
 end
+
+# Function to get the number of defect constraints
+GetNumberOfDefectConstraints(irk::LobattoIIIA) = irk.numDefectCons
+
+# Functions to bet Butcher tablu data 
+GetAlphaMatrix(irk::LobattoIIIA)    = irk.alphaMat
+GetBetaVector(irk::LobattoIIIA)     = irk.betaVec
+GetRhoVector(irk::LobattoIIIA)      = irk.rhoVec

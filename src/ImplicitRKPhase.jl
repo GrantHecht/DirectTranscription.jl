@@ -20,6 +20,14 @@ function Phase(phaseType::ImplicitRK, pfSet::PathFunctionSet, meshIntervalFracti
     # Initialize decision vector
     decisionVector = DecisionVector(collMan, pfSet) 
 
+    # Initialize collocation manager NLP data matricies 
+    numStates       = GetNumberOfStates(pfSet)
+    numControls     = GetNumberOfControls(pfSet)
+    numVars         = GetNumberOfDecisionVariables(decisionVector)
+    InitializeAMatrix!(collMan, numStates, numControls, numVars)
+    InitializeBMatrix!(collMan, numStates, HasCostFunctions(pfSet))
+    @warn "NLP data container matricies sized but not filled yet."
+
     # Instantiate Implicit RK Phase
     return ImplicitRKPhase{typeof(pfSet)}(pfSet, collMan, decisionVector)
 end

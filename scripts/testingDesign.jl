@@ -23,7 +23,7 @@ pt = ImplicitRK()
 
 # Mesh properties
 meshIntervalFractions = [0.0, 0.25, 0.5, 0.75, 1.0]
-meshIntervalNumPoints = [2, 2, 2, 2]
+meshIntervalNumPoints = [2,2,2,2]
 
 # Instaitiate phase
 phase = Phase(pt, pfs, meshIntervalFractions, meshIntervalNumPoints)

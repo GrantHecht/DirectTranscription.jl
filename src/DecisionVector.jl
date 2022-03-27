@@ -265,3 +265,11 @@ function SetStateAndControlGuessSet!(dv::DecisionVector)
     CheckIfInitialized!(dv)
     return nothing
 end
+
+# Function to get the number of decision variables 
+GetNumberOfDecisionVariables(dv::DecisionVector) = length(dv.decisionVector)
+
+# Functions to get the number of state, control, and static parameters
+GetNumberOfStates(dv::DecisionVector)       = dv.nStates
+GetNumberOfControls(dv::DecisionVector)     = dv.nControls 
+GetNumberOfStatics(dv::DecisionVector)      = dv.nStatic    

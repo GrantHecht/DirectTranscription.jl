@@ -93,3 +93,12 @@ GetNumberOfStates(pfs::PathFunctionSet)     = pfs.nStates
 GetNumberOfControls(pfs::PathFunctionSet)   = pfs.nControls
 GetNumberOfStatics(pfs::PathFunctionSet)    = pfs.nStatic
 
+# Methods to check if function set has dynamics, algebraic, or cost functions
+HasDynamicsFunctions(pfs::PathFunctionSet)  = pfs.hasDynamics
+HasAlgebraicFunctions(pfs::PathFunctionSet) = pfs.hasAlgebraic
+HasCostFunctions(pfs::PathFunctionSet)      = pfs.hasCost
+
+# Methods to get number of dynamics, algebraic, or cost functions
+GetNumberOfDynamicsFunctions(pfs::PathFunctionSet)  = HasDynamicsFunctions(pfs) ? GetNumberOfFunctions(pfs.dynFuncs) : 0
+GetNumberOfAlgebraicFunctions(pfs::PathFunctionSet) = HasAlgebraicFunctions(pfs) ? GetNumberOfFunctions(pfs.algFuncs) : 0
+GetNumberOfCostFunctions(pfs::PathFunctionSet)      = HasCostFunctions(pfs) ? GetNumberOfFunctions(pfs.costFuncs) : 0
