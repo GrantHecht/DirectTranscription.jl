@@ -14,10 +14,6 @@ mutable struct NLPFunctionData
     qVectorSet::Bool
     initialized::Bool   # All requirements set
 
-    # D Matrix filled
-    qFilled::Bool
-    DFilled::Bool
-
     # Constructor 
     function NLPFunctionData()
         AMatrix     = spzeros(0,0)
@@ -25,7 +21,7 @@ mutable struct NLPFunctionData
         DMatrix     = spzeros(0,0)
         qVector     = zeros(0)
         return new(AMatrix, BMatrix, DMatrix, qVector, 
-            false, false, false, false, false, false, false)
+            false, false, false, false, false)
     end
 end
 
