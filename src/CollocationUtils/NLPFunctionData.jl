@@ -4,14 +4,6 @@ mutable struct NLPFunctionData
     BMatrix::SparseMatrixCSC{Float64, Int}
     DMatrix::SparseMatrixCSC{Float64, Int}
 
-    # D matrix sparsity 
-    DSparsity::SparseMatrixCSC{Bool, Int}
-
-    # D matrix data (not sure if filling these or directly filling DMatrix will be faster)
-    dRows::Vector{Int}
-    dCols::Vector{Int}
-    dVals::Vector{Float64}
-
     # q vector 
     qVector::Vector{Float64}
 
@@ -31,12 +23,8 @@ mutable struct NLPFunctionData
         AMatrix     = spzeros(0,0)
         BMatrix     = spzeros(0,0)
         DMatrix     = spzeros(0,0)
-        DSparsity   = SparseMatrixCSC{Bool,Int}(spzeros(0,0))
-        dRows       = Vector{Int}(undef, 0)
-        dCols       = Vector{Int}(undef, 0)
-        dVals       = Vector{Float64}(undef, 0)
         qVector     = zeros(0)
-        return new(AMatrix, BMatrix, DMatrix, DSparsity, dRows, dCols, dVals, qVector, 
+        return new(AMatrix, BMatrix, DMatrix, qVector, 
             false, false, false, false, false, false, false)
     end
 end
@@ -68,12 +56,7 @@ function InitializeBMatrix!(fd::NLPFunctionData, rows::Vector{Int}, cols::Vector
     return nothing
 end
 function InitializeDMatrixSparsity!(fd::NLPFunctionData, rows::Vector{Int}, cols::Vector{Int}, nRows, nCols)
-    vals            = [true for i in 1:length(rows)]
     fd.DMatrix      = sparse(rows, cols, Vector{Float64}(undef, length(rows)), nRows, nCols)
-    fd.DSparsity    = sparse(rows, cols, vals, nRows, nCols)
-    fd.dRows        = Vector{Int}(undef, length(rows))
-    fd.dCols        = Vector{Int}(undef, length(cols))
-    fd.dVals        = Vector{Float64}(undef, length(rows))
     fd.DSparsitySet = true
     CheckIfInitialized!(fd)
     return nothing
