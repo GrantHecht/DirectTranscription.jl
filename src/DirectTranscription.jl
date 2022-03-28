@@ -43,7 +43,7 @@ include("ImplicitRKPhase.jl")
 export Phase, SetStateBounds!, SetControlBounds!, SetStaticBounds!,
     SetTimeBounds!, SetTimeGuess!, SetStaticGuess!, 
     SetLinearStateConstantControlGuess!, SetLinearStateNoControlGuess!,
-    SetLinearStateUnityControlGuess!
+    SetLinearStateUnityControlGuess!, SetPhaseNumber!
 
 # Conditionally use Snopt 
 function __init__()

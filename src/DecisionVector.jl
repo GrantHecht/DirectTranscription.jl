@@ -127,6 +127,17 @@ function CheckIfInitialized!(dv::DecisionVector)
     return dv.initialized
 end
 
+# Function to set decision vector
+function SetDecisionVector!(dv::DecisionVector, x)
+    if length(dv.decisionVector) != length(x)
+        error("In SetDecisionVector, decision vector provided with incorrect length.")
+    end
+    @inbounds for i in 1:length(x)
+        dv.decisionVector[i] = x[i]
+    end
+    return nothing
+end
+
 # Functions to set bounds
 function SetStateBounds!(dv::DecisionVector, ub, lb)
     # Check length 
@@ -273,3 +284,44 @@ GetNumberOfDecisionVariables(dv::DecisionVector) = length(dv.decisionVector)
 GetNumberOfStates(dv::DecisionVector)       = dv.nStates
 GetNumberOfControls(dv::DecisionVector)     = dv.nControls 
 GetNumberOfStatics(dv::DecisionVector)      = dv.nStatic    
+
+# Get the initial time in decision vector
+GetInitialTime(dv::DecisionVector)          = dv.decisionVector[end - 1]
+GetFinalTime(dv::DecisionVector)            = dv.decisionVector[end]
+
+# Get static parameters
+function GetStaticParameters(dv::DecisionVector)  
+    if dv.nStatic > 0
+        idx0 = dv.numDiscretizationPoints*(dv.nStates + dv.nControls) + 1
+        idx1 = idx0 + dv.nStatic - 1
+        return view(dv.decisionVector, idx0:idx1)
+    else
+        return Vector{Float64}(undef, 0)
+    end
+end
+
+# Get state at discretization point
+function GetStateAtDiscretizationPoint(dv::DecisionVector, dp)
+    # Check that dp is less than or equal to the number of discretization points
+    if dp > dv.numDiscretizationPoints
+        error("In GetStateAtDiscretizationPoint, dp cannot be greater than the number of discretization points.")
+    end
+
+    # Compute state indecies
+    idx0 = (dp - 1)*(dv.nStates + dv.nControls) + 1
+    idx1 = idx0 + dv.nStates - 1
+    return view(dv.decisionVector, idx0:idx1)
+end
+
+# Get control at discretization point
+function GetControlAtDiscretizationPoint(dv::DecisionVector, dp)
+    # Check that dp is less than or equal to the number of discretization points
+    if dp > dv.numDiscretizationPoints
+        error("In GetControlAtDiscretizationPoint, dp cannot be greater than the number of discretization points.")
+    end
+
+    # Compute state indecies
+    idx0 = (dp - 1)*(dv.nStates + dv.nControls) + dv.nStates + 1
+    idx1 = idx0 + dv.nControls - 1
+    return view(dv.decisionVector, idx0:idx1)
+end

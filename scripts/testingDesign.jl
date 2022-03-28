@@ -45,8 +45,14 @@ controlLowerBound   = [-10.0]
 controlUpperBound   = [10.0]
 
 # Set bounds and initial guess information
+SetPhaseNumber!(phase, 1)
 SetStateBounds!(phase, stateUpperBound, stateLowerBound)
 SetControlBounds!(phase, controlUpperBound, controlLowerBound)
 SetTimeBounds!(phase, timeUpperBound, timeLowerBound)
 SetTimeGuess!(phase, initialGuessTime, finalGuessTime)
 SetLinearStateNoControlGuess!(phase, initialGuessState, finalGuessState)
+
+# Testing evaluation
+DirectTranscription.PrepareForEvaluation!(phase)
+DirectTranscription.EvaluateFunctions!(phase)
+DirectTranscription.EvaluateJacobians!(phase)

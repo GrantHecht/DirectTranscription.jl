@@ -154,7 +154,7 @@ end
 
 function EvaluateJacobian(jacType::Time,
                           fp::ADPathFunction{type,PFT,SJC,CJC,STJC,TJC},
-                          jac::AbstractMatrix,
+                          jac::AbstractVector,
                           state::AbstractVector,
                           control::AbstractVector,
                           static::AbstractVector,

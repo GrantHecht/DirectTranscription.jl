@@ -44,7 +44,7 @@ function SetFunctionNames!(pf::PathFunction, names::Vector{String})
 end
 
 # Evaluate jacobian function
-function EvaluateJacobian(jacType::JacobianType, fp::PathFunction,
+function EvaluateJacobian(jacType::JacobianType, pf::PathFunction,
     jac, state, control, static, time)
     error("EvaluateJacobian method not defined for " * 
         string(typeof(pf)) * " with JacobianType " * 

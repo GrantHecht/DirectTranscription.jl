@@ -38,11 +38,13 @@ mutable struct ImplicitRKCollocationManager{RKT <: ImplicitRungeKutta} <: Colloc
     quadratureWeights::Vector{Float64}
     
     # ===== Initialization flags 
+    dataInitialized::Bool
     phaseNumInitialized::Bool
-    fullyInitialized::Bool
+    initialized::Bool
 
 end
 
+# ===== Implicit RK Collocation manager constructor
 function CollocationManager(type::ImplicitRK, meshIntervalFractions::Vector{Float64}, meshIntervalNumPoints::Vector{Int})
     # Get Implicit RK Order 
     if meshIntervalNumPoints[1] < 0 || meshIntervalNumPoints[1] > 3
@@ -103,7 +105,7 @@ function CollocationManager(type::ImplicitRK, meshIntervalFractions::Vector{Floa
     # Construct collocation manager
     ImplicitRKCollocationManager(irk, NLPData, QuadratureData, discretizationPoints, numPathConstraintPoints,
         numControlPoints, numMeshPoints, numStateStagePointsPerMesh, numControlStagePointsPerMesh, numStatePoints, 
-        numStagePoints, numStagePointsPerMesh, timeVector, Δt, phaseNum, relTol, quadratureWeights, false, false)
+        numStagePoints, numStagePointsPerMesh, timeVector, Δt, phaseNum, relTol, quadratureWeights, false, false, false)
 end
 
 # Get discretization points
@@ -127,6 +129,44 @@ GetBetaVector(irkMan::ImplicitRKCollocationManager)     = GetBetaVector(irkMan.i
 
 # Get Implicit RK rho vector 
 GetRhoVector(irkMan::ImplicitRKCollocationManager)      = GetRhoVector(irkMan.irk)
+
+# Get time vector
+GetTimeVector(irkMan::ImplicitRKCollocationManager)     = irkMan.timeVector
+
+# Check if data is initialized
+function CheckIfDataIsInitialized!(irkMan::ImplicitRKCollocationManager)
+    if irkMan.NLPData.initialized == true && irkMan.QuadratureData.initialized == true
+        irkMan.dataInitialized = true
+    end
+    return nothing
+end
+
+# Check if initialized
+function CheckIfInitialized!(irkMan::ImplicitRKCollocationManager)
+    CheckIfDataIsInitialized!(irkMan)
+    if irkMan.phaseNumInitialized == true && irkMan.dataInitialized
+        irkMan.initialized = true 
+    end
+    return nothing
+end
+
+# Initialize NLP data q vector
+function InitializeQVector!(irkMan::ImplicitRKCollocationManager, numStates::Int, hasIntegralCost::Bool)
+    # Get the number of discretization points
+    discPoints = GetNumberOfDiscretizationPoints(irkMan)
+
+    # Initialize NLP Data q vector 
+    InitializeQVector!(irkMan.NLPData, numStates*discPoints)
+
+    # If has cost function, initialize quadrature q vector
+    if hasIntegralCost == true
+        InitializeQVector!(irkMan.QuadratureData, discPoints)
+    else
+        InitializeQVector!(irkMan.QuadratureData, 0)
+    end
+    CheckIfInitialized!(irkMan)
+    return nothing
+end
 
 # Initialize NLP A Matrix 
 function InitializeAMatrix!(irkMan::ImplicitRKCollocationManager, numStates::Int, numControls::Int, numVars::Int)
@@ -187,6 +227,8 @@ function InitializeAMatrix!(irkMan::ImplicitRKCollocationManager, numStates::Int
         numStates*GetNumberOfDefectConstraints(irkMan), numVars)
     InitializeAMatrix!(irkMan.QuadratureData, Vector{Int}(undef, 0), Vector{Int}(undef, 0), Vector{Float64}(undef, 0),
         0, numVars) 
+    CheckIfInitialized!(irkMan)
+    return nothing
 end
 
 function InitializeBMatrix!(irkMan::ImplicitRKCollocationManager, numStates::Int, hasIntegralCost::Bool)
@@ -280,4 +322,204 @@ function InitializeBMatrix!(irkMan::ImplicitRKCollocationManager, numStates::Int
         InitializeBMatrix!(irkMan.QuadratureData, Vector{Int}(undef, 0), Vector{Int}(undef, 0), Vector{Float64}(undef, 0),
             0, numSteps*numDefects + 1) 
     end
+    CheckIfInitialized!(irkMan)
+    return nothing
+end
+
+function InitializeDMatrix!(irkMan::ImplicitRKCollocationManager, pfs::PathFunctionSet, 
+                            numStates, numControls, numStatic, hasIntegralCost)
+    # Get the number of discretization points
+    discPoints  = GetNumberOfDiscretizationPoints(irkMan)
+
+    # Get sparsity patterns
+    stateSP     = GetJacobianSparsity(State(), pfs.dynFuncs)
+    controlSP   = GetJacobianSparsity(Control(), pfs.dynFuncs)
+    staticSP    = GetJacobianSparsity(Static(), pfs.dynFuncs)
+    timeSP      = GetJacobianSparsity(Time(), pfs.dynFuncs)
+
+    # Get the number of nonzeros in each dynamics jacobian 
+    nStateNz    = nnz(stateSP)
+    nControlNz  = nnz(controlSP)
+    nStaticNz   = nnz(staticSP)
+    nTimeNz     = nnz(timeSP)
+
+    # Compute the number of nonzeros in D 
+    nz          = discPoints*(nStateNz + nControlNz + nStaticNz + 2*nTimeNz)
+
+    # Loop and fill rows, cols, and vals
+    rows        = Vector{Int}(undef, nz)
+    cols        = Vector{Int}(undef, nz)
+    idx         = 0
+    for point in 1:discPoints
+        # ===== Add state sparsity
+        # Compute row and column offset
+        r0      = (point - 1)*numStates
+        c0      = (point - 1)*(numStates + numControls)
+        r, c, v = findnz(stateSP)
+        for i in 1:nStateNz
+            # Increment index counter
+            idx += 1
+
+            # Add values to row, col, and val vectors
+            rows[idx] = r0 + r[i]
+            cols[idx] = c0 + c[i]
+        end
+
+        # ===== Add control sparsity
+        # Compute row and column offset
+        r0      = (point - 1)*numStates
+        c0      = (point - 1)*(numStates + numControls) + numStates
+        r, c, v = findnz(controlSP)
+        for i in 1:nControlNz
+            # Increment index counter
+            idx += 1
+
+            # Add values to row, col, and val vectors
+            rows[idx] = r0 + r[i]
+            cols[idx] = c0 + c[i]
+        end
+
+        # Add static sparsity 
+        # Compute row and column offset
+        r0      = (point - 1)*numStates
+        c0      = discPoints*(numStates + numControls)
+        r, c, v = findnz(staticSP)
+        for i in 1:nStaticNz
+            # Increment index counter
+            idx += 1
+
+            # Add values to row, col, and val vectors
+            rows[idx] = r0 + r[i]
+            cols[idx] = c0 + c[i]
+        end
+
+        # ===== Add time sparsity
+        # Compute row and column offset
+        r0      = (point - 1)*numStates
+        c0      = discPoints*(numStates + numControls) + numStatic
+        r, c, v = findnz(timeSP)
+        for i in 1:nStaticNz
+            for c_offset in 0:1
+                # Increment index counter
+                idx += 1
+
+                # Add values to row, col, and val vectors
+                rows[idx] = r0 + r[i]
+                cols[idx] = c0 + c_offset + c[i]
+            end
+        end
+    end
+
+    # Set NLP Data Sparsity
+    InitializeDMatrixSparsity!(irkMan.NLPData, rows, cols, discPoints*numStates,
+        discPoints*(numStates + numControls) + numStatic + 2)
+
+    # If has integral cost, fill quadrature D matrix sparsity
+    if hasIntegralCost == true
+        # Get sparsity patterns
+        stateSP     = GetJacobianSparsity(State(), pfs.costFuncs)
+        controlSP   = GetJacobianSparsity(Control(), pfs.costFuncs)
+        staticSP    = GetJacobianSparsity(Static(), pfs.costFuncs)
+        timeSP      = GetJacobianSparsity(Time(), pfs.costFuncs)
+
+        # Get the number of nonzeros in each dynamics jacobian 
+        nStateNz    = nnz(stateSP)
+        nControlNz  = nnz(controlSP)
+        nStaticNz   = nnz(staticSP)
+        nTimeNz     = nnz(timeSP)
+
+        # Compute the number of nonzeros in D 
+        nz          = discPoints*(nStateNz + nControlNz + nStaticNz + 2*nTimeNz)
+
+        # Loop and fill rows, cols, and vals
+        rows        = Vector{Int}(undef, nz)
+        cols        = Vector{Int}(undef, nz)
+        idx         = 0
+        for point in 1:discPoints
+            # ===== Add state sparsity
+            # Compute row and column offset
+            r0      = point - 1
+            c0      = (point - 1)*(numStates + numControls)
+            r, c, v = findnz(stateSP)
+            for i in 1:nStateNz
+                # Increment index counter
+                idx += 1
+
+                # Add values to row, col, and val vectors
+                rows[idx] = r0 + r[i]
+                cols[idx] = c0 + c[i]
+            end
+
+            # ===== Add control sparsity
+            # Compute row and column offset
+            r0      = point - 1
+            c0      = (point - 1)*(numStates + numControls) + numStates
+            r, c, v = findnz(controlSP)
+            for i in 1:nControlNz
+                # Increment index counter
+                idx += 1
+
+                # Add values to row, col, and val vectors
+                rows[idx] = r0 + r[i]
+                cols[idx] = c0 + c[i]
+            end
+
+            # Add static sparsity 
+            # Compute row and column offset
+            r0      = point - 1
+            c0      = discPoints*(numStates + numControls)
+            r, c, v = findnz(staticSP)
+            for i in 1:nStaticNz
+                # Increment index counter
+                idx += 1
+
+                # Add values to row, col, and val vectors
+                rows[idx] = r0 + r[i]
+                cols[idx] = c0 + c[i]
+            end
+
+            # ===== Add time sparsity
+            # Compute row and column offset
+            r0      = point - 1
+            c0      = discPoints*(numStates + numControls) + numStatic
+            r, c, v = findnz(timeSP)
+            for i in 1:nStaticNz
+                for c_offset in 0:1
+                    # Increment index counter
+                    idx += 1
+
+                    # Add values to row, col, and val vectors
+                    rows[idx] = r0 + r[i]
+                    cols[idx] = c0 + c_offset + c[i]
+                end
+            end
+        end
+
+        # Fill Jacobian sparsity for quadrature data
+        InitializeDMatrixSparsity!(irkMan.QuadratureData, rows, cols, discPoints, 
+            discPoints*(numStates + numControls) + numStatic + 2)
+    else
+        # Set empty quadrature data
+        InitializeDMatrixSparsity!(irkMan.QuadratureData, Vector{Int}(undef, 0), Vector{Int}(undef, 0),
+            0, discPoints*(numStates + numControls) + numStatic + 2) 
+    end
+    CheckIfInitialized!(irkMan)
+    return nothing
+end
+
+# Prepare for function evaluation
+function PrepareForEvaluation!(irkMan::ImplicitRKCollocationManager, decVec)
+    # Get initial and final times
+    ti  = GetInitialTime(decVec)
+    tf  = GetFinalTime(decVec)
+
+    # Set Δt
+    irkMan.Δt   = tf - ti
+
+    # Set time vector
+    discPoints  = GetDiscretizationPoints(irkMan)
+    for i in 1:length(irkMan.timeVector)
+        irkMan.timeVector[i] = irkMan.Δt*discPoints[i]
+    end
+    return nothing
 end
