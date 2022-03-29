@@ -8,6 +8,8 @@ mutable struct ImplicitRKCollocationManager{RKT <: ImplicitRungeKutta} <: Colloc
     NLPData::NLPFunctionData
     # Utility object to manage quadrature data
     QuadratureData::NLPFunctionData
+    # Utility object to manage algebraic path constraint data
+    AlgebraicData::AlgebraicFunctionData
     # Unscaled discretization points for transcription
     discretizationPoints::Vector{Float64}
     # Number of points which apply path constraints 
@@ -102,8 +104,11 @@ function CollocationManager(type::ImplicitRK, meshIntervalFractions::Vector{Floa
     # Initialize Quadrature Data 
     QuadratureData = NLPFunctionData()
 
+    # Initialize Algebraic Data
+    AData   = AlgebraicFunctionData()
+
     # Construct collocation manager
-    ImplicitRKCollocationManager(irk, NLPData, QuadratureData, discretizationPoints, numPathConstraintPoints,
+    ImplicitRKCollocationManager(irk, NLPData, QuadratureData, AData, discretizationPoints, numPathConstraintPoints,
         numControlPoints, numMeshPoints, numStateStagePointsPerMesh, numControlStagePointsPerMesh, numStatePoints, 
         numStagePoints, numStagePointsPerMesh, timeVector, Δt, phaseNum, relTol, quadratureWeights, false, false, false)
 end
@@ -135,7 +140,12 @@ GetTimeVector(irkMan::ImplicitRKCollocationManager)     = irkMan.timeVector
 
 # Check if data is initialized
 function CheckIfDataIsInitialized!(irkMan::ImplicitRKCollocationManager)
-    if irkMan.NLPData.initialized == true && irkMan.QuadratureData.initialized == true
+    CheckIfInitialized!(irkMan.NLPData)
+    CheckIfInitialized!(irkMan.QuadratureData)
+    CheckIfInitialized!(irkMan.AlgebraicData)
+    if irkMan.NLPData.initialized == true && 
+       irkMan.QuadratureData.initialized == true &&
+       irkMan.AlgebraicData.initialized == true
         irkMan.dataInitialized = true
     end
     return nothing
@@ -151,12 +161,16 @@ function CheckIfInitialized!(irkMan::ImplicitRKCollocationManager)
 end
 
 # Initialize NLP data q vector
-function InitializeQVector!(irkMan::ImplicitRKCollocationManager, numStates::Int, hasIntegralCost::Bool)
+function InitializeQVector!(irkMan::ImplicitRKCollocationManager, numStates::Int, 
+                            numAlgFuncs::Int, hasIntegralCost::Bool)
     # Get the number of discretization points
     discPoints = GetNumberOfDiscretizationPoints(irkMan)
 
     # Initialize NLP Data q vector 
     InitializeQVector!(irkMan.NLPData, numStates*discPoints)
+
+    # Initialize Algebraic Data q vector
+    InitializeQVector!(irkMan.AlgebraicData, numAlgFuncs*discPoints)
 
     # If has cost function, initialize quadrature q vector
     if hasIntegralCost == true
@@ -327,7 +341,7 @@ function InitializeBMatrix!(irkMan::ImplicitRKCollocationManager, numStates::Int
 end
 
 function InitializeDMatrix!(irkMan::ImplicitRKCollocationManager, pfs::PathFunctionSet, 
-                            numStates, numControls, numStatic, hasIntegralCost)
+                            numStates, numControls, numStatic, numAlgFuncs, hasIntegralCost)
     # Get the number of discretization points
     discPoints  = GetNumberOfDiscretizationPoints(irkMan)
 
@@ -413,6 +427,97 @@ function InitializeDMatrix!(irkMan::ImplicitRKCollocationManager, pfs::PathFunct
     # Set NLP Data Sparsity
     InitializeDMatrixSparsity!(irkMan.NLPData, rows, cols, discPoints*numStates,
         discPoints*(numStates + numControls) + numStatic + 2)
+
+    # If has algebraic functions, fill algebraic function Jacobian sparsity
+    if numAlgFuncs > 0
+        # Get sparsity patterns
+        stateSP     = GetJacobianSparsity(State(), pfs.algFuncs)
+        controlSP   = GetJacobianSparsity(Control(), pfs.algFuncs)
+        staticSP    = GetJacobianSparsity(Static(), pfs.algFuncs)
+        timeSP      = GetJacobianSparsity(Time(), pfs.algFuncs)
+
+        # Get the number of nonzeros in each dynamics jacobian 
+        nStateNz    = nnz(stateSP)
+        nControlNz  = nnz(controlSP)
+        nStaticNz   = nnz(staticSP)
+        nTimeNz     = nnz(timeSP)
+
+        # Compute the number of nonzeros in D 
+        nz          = discPoints*(nStateNz + nControlNz + nStaticNz + 2*nTimeNz)
+
+        # Loop and fill rows, cols, and vals
+        rows        = Vector{Int}(undef, nz)
+        cols        = Vector{Int}(undef, nz)
+        idx         = 0
+        for point in 1:discPoints
+            # ===== Add state sparsity
+            # Compute row and column offset
+            r0      = (point - 1)*numAlgFuncs
+            c0      = (point - 1)*(numStates + numControls)
+            r, c, v = findnz(stateSP)
+            for i in 1:nStateNz
+                # Increment index counter
+                idx += 1
+
+                # Add values to row, col, and val vectors
+                rows[idx] = r0 + r[i]
+                cols[idx] = c0 + c[i]
+            end
+
+            # ===== Add control sparsity
+            # Compute row and column offset
+            r0      = (point - 1)*numAlgFuncs
+            c0      = (point - 1)*(numStates + numControls) + numStates
+            r, c, v = findnz(controlSP)
+            for i in 1:nControlNz
+                # Increment index counter
+                idx += 1
+
+                # Add values to row, col, and val vectors
+                rows[idx] = r0 + r[i]
+                cols[idx] = c0 + c[i]
+            end
+
+            # Add static sparsity 
+            # Compute row and column offset
+            r0      = (point - 1)*numAlgFuncs
+            c0      = discPoints*(numStates + numControls)
+            r, c, v = findnz(staticSP)
+            for i in 1:nStaticNz
+                # Increment index counter
+                idx += 1
+
+                # Add values to row, col, and val vectors
+                rows[idx] = r0 + r[i]
+                cols[idx] = c0 + c[i]
+            end
+
+            # ===== Add time sparsity
+            # Compute row and column offset
+            r0      = (point - 1)*numAlgFuncs
+            c0      = discPoints*(numStates + numControls) + numStatic
+            r, c, v = findnz(timeSP)
+            for i in 1:nStaticNz
+                for c_offset in 0:1
+                    # Increment index counter
+                    idx += 1
+
+                    # Add values to row, col, and val vectors
+                    rows[idx] = r0 + r[i]
+                    cols[idx] = c0 + c_offset + c[i]
+                end
+            end
+        end
+        InitializeDMatrixSparsity!(irkMan.AlgebraicData, rows, cols, discPoints*numAlgFuncs,
+            discPoints*(numStates + numControls) + numStatic + 2)
+    else
+        InitializeDMatrixSparsity!(irkMan.AlgebraicData, Vector{Int}(undef, 0), Vector{Int}(undef, 0),
+            0, discPoints*(numStates + numControls) + numStatic + 2)
+        # Set algebraic function bounds to vectors of zero length because
+        # we don't have any algebraic functions.
+        SetFunctionLowerBounds!(irkMan.AlgebraicData, Vector{Float64}(undef, 0))
+        SetFunctionUpperBounds!(irkMan.AlgebraicData, Vector{Float64}(undef, 0))
+    end
 
     # If has integral cost, fill quadrature D matrix sparsity
     if hasIntegralCost == true

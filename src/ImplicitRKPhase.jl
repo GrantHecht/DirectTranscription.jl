@@ -19,15 +19,16 @@ function Phase(phaseType::ImplicitRK, pfSet::PathFunctionSet, meshIntervalFracti
     # Initialize decision vector
     decisionVector = DecisionVector(tMan, pfSet) 
 
-    # Initialize collocation manager NLP data matricies 
+    # Initialize collocation manager data matricies 
     numStates       = GetNumberOfStates(pfSet)
     numControls     = GetNumberOfControls(pfSet)
     numStatic       = GetNumberOfStatics(pfSet)
     numVars         = GetNumberOfDecisionVariables(decisionVector)
-    InitializeQVector!(tMan, numStates, HasCostFunctions(pfSet))
+    numAlgFuncs     = GetNumberOfAlgebraicFunctions(pfSet)
+    InitializeQVector!(tMan, numStates, numAlgFuncs, HasCostFunctions(pfSet))
     InitializeAMatrix!(tMan, numStates, numControls, numVars)
     InitializeBMatrix!(tMan, numStates, HasCostFunctions(pfSet))
-    InitializeDMatrix!(tMan, pfSet, numStates, numControls, numStatic, HasCostFunctions(pfSet))
+    InitializeDMatrix!(tMan, pfSet, numStates, numControls, numStatic, numAlgFuncs, HasCostFunctions(pfSet))
 
     # Instantiate Implicit RK Phase
     return ImplicitRKPhase{typeof(pfSet)}(pfSet, tMan, decisionVector)
@@ -69,7 +70,17 @@ function EvaluateFunctions!(p::ImplicitRKPhase)
         end
 
         # Evaulate algebraic functions
-        
+        if HasAlgebraicFunctions(p.pathFuncSet) == true 
+            # Get view of q vector for function output
+            nAlgFuncs   = GetNumberOfAlgebraicFunctions(p.pathFuncSet)
+            idx0        = (point - 1)*nStates + 1
+            idx1        = idx0 + nAlgFuncs - 1
+            qView       = GetQVectorView(p.tMan.AlgebraicData, idx0:idx1)
+
+            # Evaluate algebraic functions
+            EvaluateFunction(p.pathFuncSet.algFuncs, 
+                qView, xs, us, ps, ts[point])
+        end
     end
 end
 
@@ -130,6 +141,7 @@ function EvaluateJacobians!(p::ImplicitRKPhase)
             
             # Evaluate dynamics static parameter jacobian
             EvaluateJacobian(Static(), dynFuncs, dView, xs, us, ps, ts[point])
+            dView .*= p.tMan.Δt
         end
 
         # Evaluate dynamics time jacobians
@@ -150,7 +162,60 @@ function EvaluateJacobians!(p::ImplicitRKPhase)
         dViewf .*= p.tMan.Δt*discretizationPoints[point] 
         dViewf .+= fView
 
-        # Evaluate integral cost function
+        # Evaluate algebraic function jacobians
+        if HasAlgebraicFunctions(p.pathFuncSet)
+            # Get algebraic function 
+            algFuncs    = GetAlgebraicFunctions(p.pathFuncSet)
+
+            # Get number of algebraic functions
+            nAlgFuncs   = GetNumberOfAlgebraicFunctions(p.pathFuncSet) 
+
+            # Get D matrix rows for current discretization point (i.e., D[r0:r1, column_range])
+            r0      = (point - 1)*nAlgFuncs + 1 
+            r1      = r0 + nAlgFuncs - 1
+
+            # Get D matrix state Jacobian columns
+            c0      = (point - 1)*(nStates + nControls) + 1
+            c1      = c0 + nStates - 1
+            dView   = GetDMatrixView(p.tMan.AlgebraicData, r0:r1, c0:c1)
+                
+            # Evaluate path constraint state jacobian
+            EvaluateJacobian(State(), algFuncs, dView, xs, us, ps, ts[point])
+
+            # Get D matrix control jacobian indicies
+            c0      = c1 + 1 
+            c1      = c0 + nControls - 1
+            dView   = GetDMatrixView(p.tMan.AlgebraicData, r0:r1, c0:c1)
+
+            # Evaluate path constriant state jacobian
+            EvaluateJacobian(Control(), algFuncs, dView, xs, us, ps, ts[point])
+
+            # If phase has static parameters, evaluate static parameter jacobian
+            if nStatic > 0
+                # Get D matrix static jacobian indicies
+                c0      = numDiscretizationPoints*(nStates + nControls) + 1
+                c1      = c0 + GetNumberOfStatics(p.pathFuncSet) - 1
+                dView   = GetDMatrixView(p.tMan.NLPData, r0:r1, c0:c1)
+                
+                # Evaluate path constraint static parameter jacobian
+                EvaluateJacobian(Static(), algFuncs, dView, xs, us, ps, ts[point])
+            end
+
+            # Evaluate path constraint time jacobians
+            # Get D matrix initial time jacobian indicies
+            ci         = numDiscretizationPoints*(nStates + nControls) + nStatic + 1
+            cf         = ci + 1
+            dViewi     = GetDMatrixView(p.tMan.NLPData, r0:r1, ci)
+            dViewf     = GetDMatrixView(p.tMan.NLPData, r0:r1, cf)
+
+            # Evaluate jacobian
+            EvaluateJacobian(Time(), dynFuncs, dViewi, xs, us, ps, ts[point])
+            dViewf .= dViewi
+            dViewi .*= (1 - discretizationPoints[point])
+            dViewf .*= discretizationPoints[point] 
+        end
+
+        # Evaluate integral cost jacobians
         if HasCostFunctions(p.pathFuncSet) == true
             # Get cost function 
             costFunc = GetCostFunctions(p.pathFuncSet)
@@ -185,6 +250,7 @@ function EvaluateJacobians!(p::ImplicitRKPhase)
                 
                 # Evaluate cost static parameter jacobian
                 EvaluateJacobian(Static(), costFunc, dView, xs, us, ps, ts[point])
+                dView .*= p.tMan.Δt
             end
 
             # Evaluate cost time jacobians
@@ -205,61 +271,6 @@ function EvaluateJacobians!(p::ImplicitRKPhase)
             dViewf .*= p.tMan.Δt*discretizationPoints[point] 
             dViewf .+= fView
         end
-
-        # Evaulate algebraic functions
-        
     end
 end
 
-# Methods to set parameter bounds
-SetStateBounds!(p::ImplicitRKPhase, ub, lb)     = SetStateBounds!(p.decisionVector, ub, lb)
-SetControlBounds!(p::ImplicitRKPhase, ub, lb)   = SetControlBounds!(p.decisionVector, ub, lb)
-SetStaticBounds!(p::ImplicitRKPhase, ub, lb)    = SetStaticBounds!(p.decisionVector, ub, lb)
-SetTimeBounds!(p::ImplicitRKPhase, ub, lb)      = SetTimeBounds!(p.decisionVector, ub, lb)
-
-# Methods to set time and static parameter guesses
-SetTimeGuess!(p::ImplicitRKPhase, ti, tf)       = SetTimeGuess!(p.decisionVector, ti, tf)
-SetStaticGuess!(p::ImplicitRKPhase, sp)         = SetStaticGuess!(p.decisionVector, sp) 
-
-# Methods to set state and control guess
-# Set state guess by linear interpolation from xi to xf.
-# Set constant control
-function SetLinearStateConstantControlGuess!(p::ImplicitRKPhase, xi, xf, u)
-    # Check that xi, xf, and u are the correct length
-    if length(xi) != GetNumberOfStates(p.pathFuncSet)
-        error("Guess for initial state is the incorrect length.")
-    end
-    if length(xf) != GetNumberOfStates(p.pathFuncSet)
-        error("Guess for final state is the incorrect length.")
-    end
-    if length(u) != GetNumberOfControls(p.pathFuncSet)
-        error("Guess for constant control is the incorrect length.")
-    end
-
-    # Get discretization points for linear interpolation
-    discretizationPoints = GetDiscretizationPoints(p.tMan)
-
-    # Loop through discretization points and set state and control
-    x   = zeros(GetNumberOfStates(p.pathFuncSet))
-    for i in 1:length(discretizationPoints)
-        # Compute linear interpolated state
-        x .= xi .+ (discretizationPoints[i] - discretizationPoints[1]).*(xf .- xi)
-
-        # Set linear interpolated state
-        SetStateAtDiscretizationPoint!(p.decisionVector, x, i)
-
-        # Set constant control 
-        SetControlAtDiscretizationPoint!(p.decisionVector, u, i)
-    end
-
-    # Set state and control guess set flags in decision vector 
-    SetStateAndControlGuessSet!(p.decisionVector)
-end
-
-# Set state guess by linear interpolation from xi to xf and set control to zero
-SetLinearStateNoControlGuess!(p::ImplicitRKPhase, xi, xf) = 
-    SetLinearStateConstantControlGuess!(p, xi, xf, zeros(GetNumberOfControls(p.pathFuncSet))) 
-
-# Set state guess by linear interpolation from xi to xf and set control to one
-SetLinearStateUnityControlGuess!(p::ImplicitRKPhase, xi, xf) = 
-    SetLinearStateConstantControlGuess!(p, xi, xf, ones(GetNumberOfControls(p.pathFuncSet))) 

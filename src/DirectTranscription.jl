@@ -20,6 +20,9 @@ include("UserFunctionUtils/PathFunction.jl")
 include("UserFunctionUtils/ADPathFunction.jl")
 include("UserFunctionUtils/AnalyticPathFunction.jl")
 include("UserFunctionUtils/PathFunctionSet.jl")
+include("UserFunctionUtils/FunctionData.jl")
+include("UserFunctionUtils/NLPFunctionData.jl")
+include("UserFunctionUtils/AlgebraicFunctionData.jl")
 export PathFunction, PathFunctionSet
 
 # Transcription manager abstract type 
@@ -28,7 +31,6 @@ include("TranscriptionManager.jl")
 # Collocation utilities 
 include("CollocationUtils/ImplicitRungeKutta.jl")
 include("CollocationUtils/LobattoIIIA.jl")
-include("CollocationUtils/NLPFunctionData.jl")
 include("CollocationUtils/CollocationManager.jl")
 include("CollocationUtils/ImplicitRKCollocationManager.jl")
 

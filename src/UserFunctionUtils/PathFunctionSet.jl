@@ -41,6 +41,10 @@ struct PathFunctionSet{DF <: _pfts,CF <: _pfts,AF <: _pfts}
                 elseif GetFunctionType(funcs[i]) <: Cost 
                     costFuncsIdx = i
                     numCostFuncs += 1
+                    # Check that integral cost function only has a single function
+                    if GetNumberOfFunctions(funcs[i]) > 1
+                        error("Integral cost function cannot be a vector function.")
+                    end
                 end
 
                 # Check that there is only one of each function type
