@@ -42,6 +42,8 @@ include("NLPUtils/IpoptWrapper.jl")
 include("DecisionVector.jl")
 include("Phase.jl")
 include("ImplicitRKPhase.jl")
+include("Trajectory.jl")
+include("IpoptTrajectory.jl")
 export Phase, SetStateBounds!, SetControlBounds!, SetStaticBounds!,
     SetTimeBounds!, SetTimeGuess!, SetStaticGuess!, 
     SetLinearStateConstantControlGuess!, SetLinearStateNoControlGuess!,
@@ -49,7 +51,7 @@ export Phase, SetStateBounds!, SetControlBounds!, SetStaticBounds!,
 
 # Conditionally use Snopt 
 function __init__()
-    @require Snopt="0e9dc826-d618-11e8-1f57-c34e87fde2c0" include("NLPUtils/SnoptWrapper.jl")
+    @require Snopt="0e9dc826-d618-11e8-1f57-c34e87fde2c0" include("SnoptIncludes.jl")
 end
 
 end
