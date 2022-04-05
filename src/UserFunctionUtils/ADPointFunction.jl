@@ -1,6 +1,6 @@
 # Point function wrapper that uses automatic differentiation 
 # to compute Jacobians
-struct ADPointFunction{type, PFT, SJC, CJC, STJC, TJC}
+struct ADPointFunction{type, PFT, SJC, CJC, STJC, TJC} <: PointFunction{type}
     # User defined function
     func!::PFT
 
@@ -67,35 +67,36 @@ function ADPointFunction(type::FunctionType, func!::Function, nFuncs::Int,
     states      = rand(sum(nStates))
     controls    = rand(sum(nControls))
     static      = rand(sum(nStatic))
+    time        = rand(length(pointTimeList))
 
     # Detect sparsity patterns and generate jacobian configuration objects
-    if nStates > 0
-        stateSP = jacobian_sparsity((y,x)->func!(y,x,controls,static,[0.0]),out,states)
-        stateJC = ForwardDiff.JacobianConfig((y,x)->func!(y,x,controls,static,[0.0]),
+    if sum(nStates) > 0
+        stateSP = jacobian_sparsity((y,x)->func!(y,x,controls,static,time),out,states)
+        stateJC = ForwardDiff.JacobianConfig((y,x)->func!(y,x,controls,static,time),
             out, states, ForwardDiff.Chunk(states))
     else
         stateSP = sparse(Matrix{Bool}(undef, (0, 0)))
         stateJC = nothing
     end
-    if nControls > 0
-        controlSP = jacobian_sparsity((y,u)->func!(y,states,u,static,[0.0]),out,controls)
-        controlJC = ForwardDiff.JacobianConfig((y,u)->func!(y,states,u,static,[0.0]),
+    if sum(nControls) > 0
+        controlSP = jacobian_sparsity((y,u)->func!(y,states,u,static,time),out,controls)
+        controlJC = ForwardDiff.JacobianConfig((y,u)->func!(y,states,u,static,time),
             out, controls, ForwardDiff.Chunk(controls))
     else
         controlSP = sparse(Matrix{Bool}(undef, (0, 0)))
         controlJC = nothing
     end
-    if nStatic > 0
-        staticSP = jacobian_sparsity((y,p)->func!(y,states,controls,p,[0.0]),out,static)
-        staticJC = ForwardDiff.JacobianConfig((y,p)->func!(y,states,controls,p,[0.0]),
+    if sum(nStatic) > 0
+        staticSP = jacobian_sparsity((y,p)->func!(y,states,controls,p,time),out,static)
+        staticJC = ForwardDiff.JacobianConfig((y,p)->func!(y,states,controls,p,time),
             out, static, ForwardDiff.Chunk(static))
     else
         staticSP = sparse(Matrix{Bool}(undef, (0, 0)))
         staticJC = nothing
     end
-    timeSP = jacobian_sparsity((y,t)->func!(y,states,controls,static,t[1]),out,rand(1))
-    timeJC = ForwardDiff.JacobianConfig((y,t)->func!(y,states,controls,static,t[1]),
-        out, [0.0], ForwardDiff.Chunk{1}())
+    timeSP = jacobian_sparsity((y,t)->func!(y,states,controls,static,t),out,time)
+    timeJC = ForwardDiff.JacobianConfig((y,t)->func!(y,states,controls,static,t),
+        out, time, ForwardDiff.Chunk(time))
 
     PFT     = typeof(func!)
     SJC     = typeof(stateJC)

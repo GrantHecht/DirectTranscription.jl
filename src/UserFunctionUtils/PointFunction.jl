@@ -34,4 +34,13 @@
 #   t = [t_1, t_2, ..., t_N] where t_j is the time
 #   corresponding to P_j
 
-abstract type PointFunction end
+abstract type PointFunction{type <:FunctionType} <: UserFunction{type} end
+
+# ===== PointFunction contructors (wrapper for specific path function type constructors)
+# AD point function constructor
+function PointFunction(type::FunctionType, func!::Function, nFuncs::Int, 
+    pointPhaseList::Vector{Int}, pointTimeList::Vector{Bool},
+    nStates::Vector{Int}, nControls::Vector{Int}, nStatic::Vector{Int})
+    return ADPointFunction(type, func!, nFuncs, pointPhaseList, pointTimeList,
+        nStates, nControls, nStatic)
+end

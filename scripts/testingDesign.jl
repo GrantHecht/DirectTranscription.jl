@@ -1,5 +1,6 @@
 using DirectTranscription
 
+# Define optimal control problem functions
 function BrachistichronePathFunction!(out, xVec, uVec, pVec, t)
     # Extract parameter data
     u   = uVec[1]
@@ -12,21 +13,42 @@ function BrachistichronePathFunction!(out, xVec, uVec, pVec, t)
     out[3] = y3
 end
 
+function BrachistichronePointFunction!(out, xVec, uVec, pVec, t)
+    out[1] = t[1]
+    out[2] = t[2]
+    out[3] = xVec[1]
+    out[4] = xVec[2] 
+    out[5] = xVec[3]
+    out[6] = xVec[4] 
+    out[7] = xVec[5]
+    out[8] = xVec[6]
+end
+
+function BrachistichroneCostFunction!(out, xVec, uVec, pVec, t)
+    out[1] = t[1]
+end
+
 # Create path function
-pf = PathFunction(Dynamics(), BrachistichronePathFunction!, 3, 3, 1, 0);
+pathFunc    = PathFunction(Dynamics(), BrachistichronePathFunction!, 3, 3, 1, 0);
 
+# Create point functions
+pointFunc   = PointFunction(Algebraic(), BrachistichronePointFunction!, 8, 
+                [1, 1], [false, true], [3, 3], [1, 1], [0, 0])
+costFunc    = PointFunction(Cost(), BrachistichroneCostFunction!, 1,
+                [1], [true], [3], [1], [0])
+                
 # Create set of path functions for phase 
-pfs = PathFunctionSet(pf)
+pathFuncSet     = PathFunctionSet(pathFunc)
 
-# Phase type 
-pt = ImplicitRK()
+# Create set of point functions for the trajectory
+pointFuncSet    = PointFunctionSet(pointFunc, costFunc)
 
 # Mesh properties
 meshIntervalFractions = [0.0, 0.25, 0.5, 0.75, 1.0]
 meshIntervalNumPoints = [2,2,2,2]
 
 # Instaitiate phase
-phase = Phase(pt, pfs, meshIntervalFractions, meshIntervalNumPoints)
+phase = Phase(ImplicitRK(), pathFuncSet, meshIntervalFractions, meshIntervalNumPoints)
 
 # Set time properties
 timeLowerBound      = 0.0
@@ -45,7 +67,6 @@ controlLowerBound   = [-10.0]
 controlUpperBound   = [10.0]
 
 # Set bounds and initial guess information
-SetPhaseNumber!(phase, 1)
 SetStateBounds!(phase, stateUpperBound, stateLowerBound)
 SetControlBounds!(phase, controlUpperBound, controlLowerBound)
 SetTimeBounds!(phase, timeUpperBound, timeLowerBound)
@@ -53,6 +74,6 @@ SetTimeGuess!(phase, initialGuessTime, finalGuessTime)
 SetLinearStateNoControlGuess!(phase, initialGuessState, finalGuessState)
 
 # Testing evaluation
-DirectTranscription.PrepareForEvaluation!(phase)
-DirectTranscription.EvaluateFunctions!(phase)
-DirectTranscription.EvaluateJacobians!(phase)
+#DirectTranscription.PrepareForEvaluation!(phase)
+#DirectTranscription.EvaluateFunctions!(phase)
+#DirectTranscription.EvaluateJacobians!(phase)

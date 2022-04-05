@@ -16,14 +16,20 @@ export Dynamics, Cost, Algebraic
 export ImplicitRK
 
 # User function utilities
+include("UserFunctionUtils/UserFunction.jl")
 include("UserFunctionUtils/PathFunction.jl")
+include("UserFunctionUtils/PointFunction.jl")
 include("UserFunctionUtils/ADPathFunction.jl")
+include("UserFunctionUtils/ADPointFunction.jl")
 include("UserFunctionUtils/AnalyticPathFunction.jl")
+include("UserFunctionUtils/AnalyticPointFunction.jl")
 include("UserFunctionUtils/PathFunctionSet.jl")
+include("UserFunctionUtils/PointFunctionSet.jl")
 include("UserFunctionUtils/FunctionData.jl")
 include("UserFunctionUtils/NLPFunctionData.jl")
 include("UserFunctionUtils/AlgebraicFunctionData.jl")
-export PathFunction, PathFunctionSet
+export PathFunction, PointFunction, 
+    PathFunctionSet, PointFunctionSet
 
 # Transcription manager abstract type 
 include("TranscriptionManager.jl")
@@ -42,12 +48,13 @@ include("NLPUtils/IpoptWrapper.jl")
 include("DecisionVector.jl")
 include("Phase.jl")
 include("ImplicitRKPhase.jl")
+include("PhaseSet.jl")
 include("Trajectory.jl")
 include("IpoptTrajectory.jl")
 export Phase, SetStateBounds!, SetControlBounds!, SetStaticBounds!,
     SetTimeBounds!, SetTimeGuess!, SetStaticGuess!, 
     SetLinearStateConstantControlGuess!, SetLinearStateNoControlGuess!,
-    SetLinearStateUnityControlGuess!, SetPhaseNumber!
+    SetLinearStateUnityControlGuess!
 
 # Conditionally use Snopt 
 function __init__()

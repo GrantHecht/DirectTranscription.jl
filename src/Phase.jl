@@ -6,6 +6,9 @@ SetPhaseNumber!(p::Phase, phaseNum) = SetPhaseNumber!(p.tMan, phaseNum)
 # Get phase number 
 GetPhaseNumber(p::Phase) = p.tMan.phaseNum
 
+# Get the number of decision variables
+GetNumberOfDecisionVariables(p::Phase) = GetNumberOfDecisionVariables(p.decisionVector)
+
 # Check if ready for optimization
 function CheckIfInitialized!(p::Phase)
     if p.decisionVector.initialized && p.tMan.initialized

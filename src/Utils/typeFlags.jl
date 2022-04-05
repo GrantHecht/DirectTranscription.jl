@@ -15,3 +15,7 @@ struct Static <: JacobianType end
 # Transcription types 
 abstract type TranscriptionType end
 struct ImplicitRK <: TranscriptionType end
+
+# NLP Solver types
+abstract type NLPSolver end
+struct IPOPT <: NLPSolver end
