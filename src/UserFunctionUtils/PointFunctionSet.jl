@@ -32,3 +32,29 @@ function GetNumberOfCostFunctions(pfs::PointFunctionSet)
     end
     return nCostFuncs
 end
+
+function GetNumberOfAlgebraicJacobianNonZeros(pfs::PointFunctionSet)
+    nonZeros = 0
+    for i in 1:length(pfs.pft)
+        if GetFunctionType(pfs.pft[i]) <: Algebraic
+            nonZeros += nnz(GetJacobianSparsity(State(),pfs.pft[i]))
+            nonZeros += nnz(GetJacobianSparsity(Control(),pfs.pft[i]))
+            nonZeros += nnz(GetJacobianSparsity(Static(),pfs.pft[i]))
+            nonZeros += nnz(GetJacobianSparsity(Time(),pfs.pft[i]))
+        end
+    end
+    return nonZeros
+end
+
+function GetNumberOfCostJacobianNonZeros(pfs::PointFunctionSet)
+    nonZeros = 0
+    for i in 1:length(pfs.pft)
+        if GetFunctionType(pfs.pft[i]) <: Cost
+            nonZeros += nnz(GetJacobianSparsity(State(),pfs.pft[i]))
+            nonZeros += nnz(GetJacobianSparsity(Control(),pfs.pft[i]))
+            nonZeros += nnz(GetJacobianSparsity(Static(),pfs.pft[i]))
+            nonZeros += nnz(GetJacobianSparsity(Time(),pfs.pft[i]))
+        end
+    end
+    return nonZeros
+end

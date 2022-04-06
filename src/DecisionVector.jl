@@ -285,6 +285,52 @@ GetNumberOfStates(dv::DecisionVector)       = dv.nStates
 GetNumberOfControls(dv::DecisionVector)     = dv.nControls 
 GetNumberOfStatics(dv::DecisionVector)      = dv.nStatic    
 
+# Get time indicies at initial and final time
+GetTimeIndecies(dv::DecisionVector)         = (length(dv.decisionVector)-1):length(dv.decisionVector)
+
+# Get state indicies at discretization point
+function GetStateIndeciesAtDiscretizationPoint(dv::DecisionVector, dp)
+    if dp > dv.numDiscretizationPoints
+        error("In GetStateIndeciesAtDiscretizationPoint, dp cannot be greater than the number of discretization points.")
+    end
+    idx0 = (dp - 1)*(dv.nStates + dv.nControls) + 1
+    idx1 = idx0 + dv.nStates - 1
+    return idx0:idx1
+end
+
+# Get state indecies at initial or final time
+GetStateIndeciesAtInitialTime(dv::DecisionVector) = 
+    GetStateIndeciesAtDiscretizationPoint(dv, 1)
+GetStateIndeciesAtFinalTime(dv::DecisionVector) = 
+    GetStateIndeciesAtDiscretizationPoint(dv, dv.numDiscretizationPoints)
+
+# Get control indicies at discretization point
+function GetControlIndeciesAtDiscretizationPoint(dv::DecisionVector, dp)
+    if dp > dv.numDiscretizationPoints
+        error("In GetControlIndeciesAtDiscretizationPoint, dp cannot be greater than the number of discretization points.")
+    end
+    idx0 = (dp - 1)*(dv.nStates + dv.nControls) + dv.nStates + 1
+    idx1 = idx0 + dv.nControls - 1
+    return idx0:idx1
+end
+
+# Get control indicies at initial or final time
+GetControlIndeciesAtInitialTime(dv::DecisionVector) = 
+    GetControlAtDiscretizationPoint(dv, 1)
+GetControlIndeciesAtFinalTime(dv::DecisionVector) = 
+    GetControlAtDiscretizationPoint(dv, dv.numDiscretizationPoints)
+
+# Get static parameter indecies
+function GetStaticParameterIndecies(dv::DecisionVector)
+    if dv.nStatic > 0
+        idx0 = dv.numDiscretizationPoints*(dv.nStates + dv.nControls) + 1
+        idx1 = idx0 + dv.nStatic - 1
+        return idx0:idx1
+    else
+        return -1:0
+    end
+end
+
 # Get the initial time in decision vector
 GetInitialTime(dv::DecisionVector)          = dv.decisionVector[end - 1]
 GetFinalTime(dv::DecisionVector)            = dv.decisionVector[end]
@@ -301,27 +347,9 @@ function GetStaticParameters(dv::DecisionVector)
 end
 
 # Get state at discretization point
-function GetStateAtDiscretizationPoint(dv::DecisionVector, dp)
-    # Check that dp is less than or equal to the number of discretization points
-    if dp > dv.numDiscretizationPoints
-        error("In GetStateAtDiscretizationPoint, dp cannot be greater than the number of discretization points.")
-    end
-
-    # Compute state indecies
-    idx0 = (dp - 1)*(dv.nStates + dv.nControls) + 1
-    idx1 = idx0 + dv.nStates - 1
-    return view(dv.decisionVector, idx0:idx1)
-end
+GetStateAtDiscretizationPoint(dv::DecisionVector, dp) = 
+    view(dv.decisionVector, GetStateIndeciesAtDiscretizationPoint(dv, dp))
 
 # Get control at discretization point
-function GetControlAtDiscretizationPoint(dv::DecisionVector, dp)
-    # Check that dp is less than or equal to the number of discretization points
-    if dp > dv.numDiscretizationPoints
-        error("In GetControlAtDiscretizationPoint, dp cannot be greater than the number of discretization points.")
-    end
-
-    # Compute state indecies
-    idx0 = (dp - 1)*(dv.nStates + dv.nControls) + dv.nStates + 1
-    idx1 = idx0 + dv.nControls - 1
-    return view(dv.decisionVector, idx0:idx1)
-end
+GetControlAtDiscretizationPoint(dv::DecisionVector, dp) = 
+    view(dv.decisionVector, GetControlIndeciesAtDiscretizationPoint(dv, dp))

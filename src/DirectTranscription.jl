@@ -50,9 +50,10 @@ include("Phase.jl")
 include("ImplicitRKPhase.jl")
 include("PhaseSet.jl")
 include("Trajectory.jl")
+include("TrajectoryData.jl")
 include("IpoptTrajectory.jl")
-export Phase, SetStateBounds!, SetControlBounds!, SetStaticBounds!,
-    SetTimeBounds!, SetTimeGuess!, SetStaticGuess!, 
+export Phase, Trajectory,SetStateBounds!, SetControlBounds!, 
+    SetStaticBounds!, SetTimeBounds!, SetTimeGuess!, SetStaticGuess!, 
     SetLinearStateConstantControlGuess!, SetLinearStateNoControlGuess!,
     SetLinearStateUnityControlGuess!
 

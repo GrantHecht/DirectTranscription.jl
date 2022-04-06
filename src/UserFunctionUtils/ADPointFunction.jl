@@ -66,8 +66,19 @@ function ADPointFunction(type::FunctionType, func!::Function, nFuncs::Int,
     out         = zeros(nFuncs)
     states      = rand(sum(nStates))
     controls    = rand(sum(nControls))
-    static      = rand(sum(nStatic))
     time        = rand(length(pointTimeList))
+
+    # Static parameters are constant for each phase, so for 
+    # point functions involving both the initial and final point
+    # of a phase, we only need one set of the same static parameters.
+    # This insures that the static parameters are only included once.
+    numStatic   = nStatic[1]
+    for i in 2:length(pointPhaseList)
+        if !(pointPhaseList[i] in view(pointPhaseList, 1:(i - 1)))
+            numStatic += nStatic[i]
+        end
+    end
+    static      = rand(numStatic)
 
     # Detect sparsity patterns and generate jacobian configuration objects
     if sum(nStates) > 0

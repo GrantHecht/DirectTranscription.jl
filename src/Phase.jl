@@ -53,7 +53,7 @@ function SetAlgebraicFunctionUpperBounds(p::Phase, ub::AbstractVector)
         error("Algebraic function upper bounds not set to the correct length.")
     end
     # Set lower bounds 
-    SetFunctionLowerBounds!(p.tMan.AlgebraicData, ub)
+    SetFunctionUpperBounds!(p.tMan.AlgebraicData, ub)
     # Check initialization of transcription manager
     CheckIfInitialized!(p.tMan)
 end

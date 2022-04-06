@@ -22,8 +22,10 @@ function PhaseSet(pt...)
     # the phase set is initialized. When the following error is thrown, it would
     # be nice to notify the user which aspect of the phase has not been initialized 
     # for debugging purposes.
-    if !CheckIfInitialized!(pt)
-        error("When constructing phase set, all phases must be initialized.")
+    for i in 1:n
+        if !CheckIfInitialized!(pt[i])
+            error("When constructing phase set, all phases must be initialized.")
+        end
     end
             
     return PhaseSet{typeof(pt)}(pt)
@@ -42,3 +44,108 @@ end
 
 # Get total number of decision variables
 GetNumberOfDecisionVariables(ps::PhaseSet) = sum(GetNumberOfDecisionVariables.(ps.pt))
+
+# Get state indicies of phase i at initial or final time
+# timeFlag = false - Initial time of phase phaseNum
+# timeFlag = true  - Final time of phase phaseNum
+function GetStateDecisionVectorIndecies(ps::PhaseSet, phaseNum::Int, timeFlag::Bool)
+    # Check that phaseNum exists
+    if length(ps.pt) < phaseNum
+        error("In GetStateDecisionVectorIndecies, phaseNum is greater than the number of phases in the phase set.")
+    end
+
+    # Get indicies for phase of interest  
+    stateIndecies = (timeFlag == false ? 
+        GetStateIndeciesAtInitialTime(ps.pt[phaseNum].decisionVector) : 
+        GetStateIndeciesAtFinalTime(ps.pt[phaseNum].decisionVector))
+    if phaseNum != 1
+        for i in 1:phaseNum - 1
+            stateIndecies .+= GetNumberOfDecisionVariables(ps.pt[i])
+        end
+    end
+    return stateIndecies
+end
+
+function GetStateDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int}, timeFlags::Vector{Bool})
+    if length(phaseNums) != length(timeFlags)
+        error("Length of phaseNums must be equal to length of timeFlags.")
+    end
+    return [GetStateDecisionVectorIndecies(ps, phaseNums[i], timeFlags[i]) for i in 1:length(phaseNums)]
+end
+
+# Get control indicies of phase i at initial or final time
+# timeFlag = false - Initial time of phase phaseNum
+# timeFlag = true  - Final time of phase phaseNum
+function GetControlDecisionVectorIndecies(ps::PhaseSet, phaseNum::Int, timeFlag::Bool)
+    # Check that phaseNum exists
+    if length(ps.pt) < phaseNum
+        error("In GetControlDecisionVectorIndecies, phaseNum is greater than the number of phases in the phase set.")
+    end
+
+    # Get indicies for phase of interest  
+    controlIndecies = (timeFlag == false ? 
+        GetControlIndeciesAtInitialTime(ps.pt[phaseNum].decisionVector) : 
+        GetControlIndeciesAtFinalTime(ps.pt[phaseNum].decisionVector))
+    if phaseNum != 1
+        for i in 1:phaseNum - 1
+            controlIndecies .+= GetNumberOfDecisionVariables(ps.pt[i])
+        end
+    end
+    return controlIndecies
+end
+
+function GetControlDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int}, timeFlags::Vector{Bool})
+    if length(phaseNums) != length(timeFlags)
+        error("Length of phaseNums must be equal to length of timeFlags.")
+    end
+    return [GetControlDecisionVectorIndecies(ps, phaseNums[i], timeFlags[i]) for i in 1:length(phaseNums)]
+end
+
+# Get time indicies of phase i at initial or final time
+# timeFlag = false - Initial time of phase phaseNum
+# timeFlag = true  - Final time of phase phaseNum
+function GetTimeDecisionVectorIndecies(ps::PhaseSet, phaseNum::Int, timeFlag::Bool)
+    # Check that phaseNum exists
+    if length(ps.pt) < phaseNum
+        error("In GetControlDecisionVectorIndecies, phaseNum is greater than the number of phases in the phase set.")
+    end
+
+    # Get indicies for phase of interest  
+    timeIndex = (timeFlag == false ? 
+        GetTimeIndecies(ps.pt[phaseNum].decisionVector)[1] : 
+        GetTimeIndecies(ps.pt[phaseNum].decisionVector)[end])
+    if phaseNum != 1
+        for i in 1:phaseNum - 1
+            timeIndex += GetNumberOfDecisionVariables(ps.pt[i])
+        end
+    end
+    return timeIndex
+end
+
+function GetTimeDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int}, timeFlags::Vector{Bool})
+    if length(phaseNums) != length(timeFlags)
+        error("Length of phaseNums must be equal to length of timeFlags.")
+    end
+    return [GetTimeDecisionVectorIndecies(ps, phaseNums[i], timeFlags[i]) for i in 1:length(phaseNums)]
+end
+
+# Get static indicies of phase i 
+function GetStaticDecisionVectorIndecies(ps::PhaseSet, phaseNum::Int)
+    # Check that phaseNum exists
+    if length(ps.pt) < phaseNum
+        error("In GetStaticDecisionVectorIndecies, phaseNum is greater than the number of phases in the phase set.")
+    end
+
+    # Get indicies for phase of interest  
+    staticIndecies = GetStaticParameterIndecies(ps.pt[phaseNum].decisionVector)
+    if phaseNum != 1
+        for i in 1:phaseNum - 1
+            staticIndecies .+= GetNumberOfDecisionVariables(ps.pt[i])
+        end
+    end
+    return staticIndecies
+end
+
+function GetStaticDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int})
+    return [GetStaticDecisionVectorIndecies(ps, phaseNums[i]) for i in 1:length(phaseNums)]
+end
