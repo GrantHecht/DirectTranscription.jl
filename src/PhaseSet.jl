@@ -147,5 +147,49 @@ function GetStaticDecisionVectorIndecies(ps::PhaseSet, phaseNum::Int)
 end
 
 function GetStaticDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int})
-    return [GetStaticDecisionVectorIndecies(ps, phaseNums[i]) for i in 1:length(phaseNums)]
+    # Created new phase num vector with no repeated phases
+    if length(phaseNums) > 1
+        phaseNumsNoRep = [phaseNums[1]] 
+        for i in 2:length(phaseNums)
+            if !(phaseNums[i] in phaseNumsNoRep)
+                push!(phaseNumsNoRep, phaseNums[i])
+            end
+        end
+    else
+        phaseNumsNoRep = phaseNums
+    end
+    return [GetStaticDecisionVectorIndecies(ps, phaseNumsNoRep[i]) for i in 1:length(phaseNumsNoRep)]
 end
+
+function SetDecisionVector!(ps::PhaseSet, decVec)
+    # Check for correct length    
+    if length(decVec) != GetNumberOfDecisionVariables(ps)
+        error("Decision vector set with the incorrect length.")
+    end
+    
+    # Set the decision vector for each phase
+    idx0 = 1
+    for i in 1:length(ps.pt)
+        idxf = idx0 + ps.pt[i] - 1
+        SetDecisionVector!(ps.pt[i], view(decVec, idx0:idxf))
+        idx0 = idxf + 1        
+    end
+    return nothing
+end
+
+# Method to evaluate all functions in the phase set
+function EvaluateFunctions!(ps::PhaseSet)
+    for i in 1:length(ps.pt)
+        EvaluateFunctions!(ps.pt[i])
+    end
+    return nothing
+end
+
+# Method to evaluate all jacobians in the phase set
+function EvaluateJacobians!(ps::PhaseSet)
+    for i in 1:length(ps.pt)
+        EvaluateJacobians!(ps.pt[i])
+    end
+    return nothing
+end
+

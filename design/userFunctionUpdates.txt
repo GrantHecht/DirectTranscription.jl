@@ -1,0 +1,17 @@
+
+--- 04/12/22 ---
+Currently, upper and lower boundaries for algebraic
+path functions are set via a phase method and point
+functions have no method for setting boundaries.
+
+I think I should transition to setting boundaries for 
+all algebraic functions (point and path) in the user
+function object itself rather than one of the container 
+objects. Then, one of the FunctionData objects can 
+be setup with the full boundaries for the phase 
+(i.e., boundaries at every point) or the NLP problem 
+(i.e., point functions applied at arbitrary points).
+
+Plan to set this up for point functions first, as this
+must be done before I can get trajectory optimization working.
+Then, I'll go back and update the path function interface.

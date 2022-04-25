@@ -37,6 +37,10 @@ pointFunc   = PointFunction(Algebraic(), BrachistichronePointFunction!, 8,
 costFunc    = PointFunction(Cost(), BrachistichroneCostFunction!, 1,
                 [1], [true], [3], [1], [0])
                 
+# Set algebraic function upper and lower bounds         
+SetAlgebraicFunctionLowerBounds!(pointFunc, [0.0,   0.0, 0.0, 0.0, 0.0, 1.0, -10.0, -10.0])
+SetAlgebraicFunctionUpperBounds!(pointFunc, [0.0, 100.0, 0.0, 0.0, 0.0, 1.0,  10.0,   0.0])
+
 # Create set of path functions for phase 
 pathFuncSet     = PathFunctionSet(pathFunc)
 

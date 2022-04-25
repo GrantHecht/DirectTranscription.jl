@@ -37,7 +37,7 @@ SetStaticBounds!(p::Phase, ub, lb)    = SetStaticBounds!(p.decisionVector, ub, l
 SetTimeBounds!(p::Phase, ub, lb)      = SetTimeBounds!(p.decisionVector, ub, lb)
 
 # Methods to set algebraic function bounds 
-function SetAlgebraicFunctionLowerBounds(p::Phase, lb::AbstractVector)
+function SetAlgebraicFunctionLowerBounds!(p::Phase, lb::AbstractVector)
     # Check that lb is the correct length
     if length(lb) != GetNumberOfAlgebraicFunctions(p.pathFuncSet)
         error("Algebraic function lower bounds not set to the correct length.")
@@ -47,7 +47,7 @@ function SetAlgebraicFunctionLowerBounds(p::Phase, lb::AbstractVector)
     # Check initialization of transcription manager
     CheckIfInitialized!(p.tMan)
 end
-function SetAlgebraicFunctionUpperBounds(p::Phase, ub::AbstractVector)
+function SetAlgebraicFunctionUpperBounds!(p::Phase, ub::AbstractVector)
     # Check that ub is the correct length
     if length(ub) != GetNumberOfAlgebraicFunctions(p.pathFuncSet)
         error("Algebraic function upper bounds not set to the correct length.")

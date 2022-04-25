@@ -11,6 +11,10 @@ struct AnalyticPointFunction{type,PFT,SJT,CJT,STJT,TJT}
 
     # Number of functions
     nFuncs::Int
+    
+    # Function upper and lower bounds
+    LB::Vector{Float64}
+    UB::Vector{Float64}
 
     # List of phase numbers corresponding to each 
     # point the function is evaluated with.
@@ -40,9 +44,16 @@ end
 
 function AnalyticPointFunction(type::FunctionType, func!::Function, stateJac!::Union{Function,Nothing}, 
     controlJac!::Union{Function,Nothing}, staticJac!::Union{Function,Nothing}, timeJac!::Union{Function,Nothing}, 
-    nFuncs::Int, pointPhaseList::Vector{Int}, pointTimeList::Vector{Bool}, nStates::Int, nControls::Int, 
-    nStatic::Int, stateSP::AbstractVecOrMat, controlSP::AbstractVecOrMat, staticSP::AbstractVecOrMat, 
-    timeSP::AbstractVecOrMat)
+    nFuncs::Int, LB::Vector{Float64}, UB::Vector{Float64}, pointPhaseList::Vector{Int}, pointTimeList::Vector{Bool}, 
+    nStates::Int, nControls::Int, nStatic::Int, stateSP::AbstractVecOrMat, controlSP::AbstractVecOrMat, 
+    staticSP::AbstractVecOrMat, timeSP::AbstractVecOrMat)
+    
+    # Check the length of upper and lower bounds
+    if length(LB) != nFuncs
+        error("The length of the lower boundary vector must be the same as nFuncs.")
+    elseif length(UB) != nFuncs
+        error("The length of the upper boundary vector must be the same as nFuncs.")  
+    end
 
     PFT     = typeof(func!)
     SJT     = typeof(stateJac!)
@@ -50,8 +61,19 @@ function AnalyticPointFunction(type::FunctionType, func!::Function, stateJac!::U
     STJT    = typeof(staticJac!)
     TJT     = typeof(timeJac!)
     AnalyticPointFunction{typeof(type),PFT,SJT,CJT,STJT,TJT}(func!,stateJac!,controlJac!,staticJac!,timeJac!, 
-        nFuncs,pointPhaseList,pointTimeList,nStates,nControls,nStatic,Vector{String}(undef, 0), GetMatrixSparsity(stateSP),
-        GetMatrixSparsity(controlSP),GetMatrixSparsity(staticSP),GetMatrixSparsity(timeSP))
+        nFuncs,LB,UB,pointPhaseList,pointTimeList,nStates,nControls,nStatic,Vector{String}(undef, 0), 
+        GetMatrixSparsity(stateSP),GetMatrixSparsity(controlSP),GetMatrixSparsity(staticSP),GetMatrixSparsity(timeSP))
+end
+
+function AnalyticPointFunction(type::FunctionType, func!::Function, stateJac!::Union{Function,Nothing}, 
+    controlJac!::Union{Function,Nothing}, staticJac!::Union{Function,Nothing}, timeJac!::Union{Function,Nothing}, 
+    nFuncs::Int, pointPhaseList::Vector{Int}, pointTimeList::Vector{Bool}, nStates::Int, nControls::Int, 
+    nStatic::Int, stateSP::AbstractVecOrMat, controlSP::AbstractVecOrMat, staticSP::AbstractVecOrMat, 
+    timeSP::AbstractVecOrMat)
+
+    return AnalyticPointFunction(type, func!, stateJac!, controlJac!, staticJac!, timeJac!, nFuncs,
+        zeros(nFuncs), zeros(nFuncs), pointPhaseList, pointTimeList, nStates, nControls, nStatic,
+        stateSP, controlSP, staticSP, timeSP)
 end
 
 # Posibly add another function which employs some form of sparsity detection. Could also check user

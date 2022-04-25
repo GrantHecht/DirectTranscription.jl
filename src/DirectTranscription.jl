@@ -52,10 +52,11 @@ include("PhaseSet.jl")
 include("Trajectory.jl")
 include("TrajectoryData.jl")
 include("IpoptTrajectory.jl")
-export Phase, Trajectory,SetStateBounds!, SetControlBounds!, 
+export Phase, Trajectory, SetStateBounds!, SetControlBounds!, 
     SetStaticBounds!, SetTimeBounds!, SetTimeGuess!, SetStaticGuess!, 
     SetLinearStateConstantControlGuess!, SetLinearStateNoControlGuess!,
-    SetLinearStateUnityControlGuess!
+    SetLinearStateUnityControlGuess!, SetAlgebraicFunctionLowerBounds!,
+    SetAlgebraicFunctionUpperBounds!
 
 # Conditionally use Snopt 
 function __init__()

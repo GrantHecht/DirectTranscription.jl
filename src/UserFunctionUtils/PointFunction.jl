@@ -44,3 +44,31 @@ function PointFunction(type::FunctionType, func!::Function, nFuncs::Int,
     return ADPointFunction(type, func!, nFuncs, pointPhaseList, pointTimeList,
         nStates, nControls, nStatic)
 end
+
+function PointFunction(type::FunctionType, func!::Function, stateJac!::Union{Function,Nothing}, 
+    controlJac!::Union{Function,Nothing}, staticJac!::Union{Function,Nothing}, timeJac!::Union{Function,Nothing}, 
+    nFuncs::Int, pointPhaseList::Vector{Int}, pointTimeList::Vector{Bool}, nStates::Int, nControls::Int, 
+    nStatic::Int, stateSP::AbstractVecOrMat, controlSP::AbstractVecOrMat, staticSP::AbstractVecOrMat, 
+    timeSP::AbstractVecOrMat)
+    
+    return AnalyticPointFunction(type, func!, stateJac!, controlJac!, staticJac!, timeJac!,
+        nFuncs, pointPhaseList, pointTimeList, nStates, nControls, nStatic, stateSP, controlSP, 
+        staticSP, timeSP)
+end
+
+# Method to set function upper and lower bounds
+function SetAlgebraicFunctionLowerBounds!(pf::PointFunction{Algebraic}, LB::Vector{A}) where {A <: Number}
+    # Check that the LB vector is the correct length
+    if length(LB) != pf.nFuncs 
+        error("Algebraic function lower bounds not set to the correct length.")
+    end            
+    pf.LB .= LB  
+    return nothing  
+end
+function SetAlgebraicFunctionUpperBounds!(pf::PointFunction{Algebraic}, UB::Vector{A}) where {A <: Number}
+    # Check that the UB vector is the correct length
+    if length(UB) != pf.nFuncs
+        error("Algebraic function upper bounds not set to the correct length.")
+    end
+    return nothing
+end

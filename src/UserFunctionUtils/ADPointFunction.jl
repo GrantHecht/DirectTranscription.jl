@@ -7,6 +7,10 @@ struct ADPointFunction{type, PFT, SJC, CJC, STJC, TJC} <: PointFunction{type}
     # Number of functions
     nFuncs::Int
 
+    # Function upper and lower bounds
+    LB::Vector{Float64}
+    UB::Vector{Float64}
+
     # List of phase numbers corresponding to each 
     # point the function is evaluated with.
     pointPhaseList::Vector{Int}
@@ -46,8 +50,9 @@ end
 # To be fast, need to pass in number of states, controls, and static parameters 
 # to detect sparsity and allocate forward diff configuration objects.
 function ADPointFunction(type::FunctionType, func!::Function, nFuncs::Int, 
-    pointPhaseList::Vector{Int}, pointTimeList::Vector{Bool}, 
-    nStates::Vector{Int}, nControls::Vector{Int}, nStatic::Vector{Int})
+    LB::Vector{Float64}, UB::Vector{Float64}, pointPhaseList::Vector{Int}, 
+    pointTimeList::Vector{Bool}, nStates::Vector{Int}, nControls::Vector{Int}, 
+    nStatic::Vector{Int})
 
     # Check inputs
     n       = length(pointPhaseList)
@@ -61,6 +66,12 @@ function ADPointFunction(type::FunctionType, func!::Function, nFuncs::Int,
     elseif length(nStatic) != n 
         error(emsg)
     end
+    if length(LB) != nFuncs
+        error("The length of the lower boundary vector must be the same as nFuncs.")
+    end
+    if length(UB) != nFuncs
+         error("The length of the upper boundary vector must be the same as nFuncs.")
+   end
 
     # Temporarally allocate vectors for JacobainConfig creation
     out         = zeros(nFuncs)
@@ -114,9 +125,17 @@ function ADPointFunction(type::FunctionType, func!::Function, nFuncs::Int,
     CJC     = typeof(controlJC)
     STJC    = typeof(staticJC)
     TJC     = typeof(timeJC)
-    ADPointFunction{typeof(type),PFT,SJC,CJC,STJC,TJC}(func!,nFuncs,pointPhaseList,pointTimeList,
-        nStates,nControls,nStatic,Vector{String}(undef, 0),out,stateSP,controlSP,staticSP,timeSP,
-        stateJC,controlJC,staticJC,timeJC)
+    ADPointFunction{typeof(type),PFT,SJC,CJC,STJC,TJC}(func!,nFuncs,LB,UB, 
+        pointPhaseList,pointTimeList,nStates,nControls,nStatic,Vector{String}(undef, 0),out,
+        stateSP,controlSP,staticSP,timeSP,stateJC,controlJC,staticJC,timeJC)
+end
+
+function ADPointFunction(type::FunctionType, func!::Function, nFuncs::Int, 
+    pointPhaseList::Vector{Int}, pointTimeList::Vector{Bool}, 
+    nStates::Vector{Int}, nControls::Vector{Int}, nStatic::Vector{Int})
+    
+    ADPointFunction(type, func!, nFuncs, zeros(nFuncs), zeros(nFuncs), pointPhaseList, 
+        pointTimeList, nStates, nControls, nStatic)
 end
 
 # Evaluate jacobian functions
