@@ -11,7 +11,7 @@ function EvaluateFunction(pf::UserFunction,
                           state::AbstractVector,
                           control::AbstractVector,
                           static::AbstractVector,
-                          time::AbstractFloat)
+                          time::Union{AbstractFloat,AbstractVector})
     pf.func!(out,state,control,static,time)
     return nothing
 end

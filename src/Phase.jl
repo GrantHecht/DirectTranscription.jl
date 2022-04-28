@@ -19,7 +19,14 @@ function CheckIfInitialized!(p::Phase)
 end
 
 # Function to set decision vector
-SetDecisionVector!(p::Phase, x)     = SetDecisionVector!(p.decisionVector, x)
+function SetDecisionVector!(p::Phase, x)  
+    # Set the decision vector
+    SetDecisionVector!(p.decisionVector, x)
+
+    # Prepare for function evaluation
+    PrepareForEvaluation!(p)
+    return nothing
+end
 
 # Prepare for function evaluation
 PrepareForEvaluation!(p::Phase)     = PrepareForEvaluation!(p.tMan, p.decisionVector)

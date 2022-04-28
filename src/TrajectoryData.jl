@@ -23,6 +23,11 @@ end
 
 # Trajectory Data constructor
 function TrajectoryData(phaseSet, pfSet)
+    # Prepare phases for evaluation
+    for i in 1:length(phaseSet.pt)
+        PrepareForEvaluation!(phaseSet.pt[i])
+    end
+
     # Instantiate point function data
     conPointFuncData    = AlgebraicFunctionData()
     costPointFuncData   = AlgebraicFunctionData()
@@ -270,19 +275,94 @@ end
 # Method to set the full NLP problem decision vector
 SetDecisionVector!(td::TrajectoryData, decVec) = SetDecisionVector!(td.phaseSet, decVec)
 
-# Method to evaluate functions
+# Method to evaluate all functions
 function EvaluateFunctions!(td::TrajectoryData)
     # Evaluate path functions
     EvaluateFunctions!(td.phaseSet)  
 
     # Evaluate point functions
+    EvaluatePointFunctions!(td)
+    return nothing
 end
 
-# Method to evaluate jacobians
+# Method to evaluate all jacobians
 function EvaluateJacobians!(td::TrajectoryData)
     # Evaluate path jacobians
     EvaluateJacobians!(td.phaseSet)
 
     # Evaluate point jacobians
+    EvaluatePointJacobians!(td)
+    return nothing
+end
+
+# Method to evaluate point functions
+function EvaluatePointFunctions!(td::TrajectoryData)
+    # Q-Vector index initial index for current point function
+    algIdx0     = 1
+    costIdx0    = 1
+    for i in 1:length(td.pfSet.pft)
+        # Grab point phase and time lists
+        pointPhaseList  = td.pfSet.pft[i].pointPhaseList
+        pointTimeList   = td.pfSet.pft[i].pointTimeList
+
+        # Get states, controls, statics, and times
+        GetStateVector!(td.states, td.phaseSet, pointPhaseList, pointTimeList)
+        GetControlVector!(td.controls, td.phaseSet, pointPhaseList, pointTimeList)
+        GetStaticVector!(td.static, td.phaseSet, pointPhaseList)
+        GetTimeVector!(td.times, td.phaseSet, pointPhaseList, pointTimeList)
+        if GetFunctionType(td.pfSet.pft[i]) <: Algebraic
+            # Compute final QVector idx
+            idxf = algIdx0 + td.pfSet.pft[i].nFuncs - 1
+            
+            # Evaluate function
+            EvaluateFunction(td.pfSet.pft[i], 
+                view(td.constraintPointFunctionData.qVector, algIdx0:idxf),
+                td.states, td.controls, td.static, td.times)
+
+            # Update initial algebraic QVector idx
+            algIdx0 += 1
+        elseif GetFunctionType(td.pfSet.pft[i]) <: Cost
+            # Compute final QVector idx
+            idxf = costIdx0 + td.pfSet.pft[i].nFuncs - 1
+
+            # Evaluate function
+            EvaluateFunction(td.pfSet.pft[i],
+                view(td.costPointFunctionData.qVector, costIdx0:idxf),
+                td.states, td.controls, td.static, td.times)
+
+            # Update initial cost QVector idx
+            costIdx0 += 1
+        end
+    end
+    return nothing
+end
+
+# Method to evaluate point function jacobians
+function EvaluatePointJacobians!(td::TrajectoryData)
+    # Jacobian initial row for current point function
+    algRow0     = 1
+    costRow0    = 1
+    for i in 1:length(td.pfSet.pft)
+        # Grab point phase and time lists
+        pointPhaseList = td.pfSet.pft[i].pointPhaseList 
+        pointTimeList  = td.pfSet.pft[i].pointTimeList
+
+        # Get states, controls, statics, and times
+        GetStateVector!(td.states, td.phaseSet, pointPhaseList, pointTimeList)
+        GetControlVector!(td.controls, td.phaseSet, pointPhaseList, pointTimeList)
+        GetStaticVector!(td.static, td.phaseSet, pointPhaseList)
+        GetTimeVector!(td.times, td.phaseSet, pointPhaseList, pointTimeList)
+        if GetFunctionType(td.pfSet.pft[i]) <: Algebraic 
+            # Compute final row index
+            idxf = algIdx0 + td.pfSet.pft[i].nFuncs - 1
+
+            # ===== State Jacobian
+            # Get state indecies
+            stateIndecies = GetStateDecisionVectorIndecies(phaseSet, pointPhaseList, pointTimeList)
+
+        elseif GetFunctionType(td.pfSet.pft[i]) <: Cost
+
+        end
+    end
 end
 

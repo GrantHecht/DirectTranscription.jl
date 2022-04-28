@@ -304,6 +304,12 @@ GetStateIndeciesAtInitialTime(dv::DecisionVector) =
 GetStateIndeciesAtFinalTime(dv::DecisionVector) = 
     GetStateIndeciesAtDiscretizationPoint(dv, dv.numDiscretizationPoints)
 
+# Get state at initial or final time 
+GetStateVectorAtInitialTime(dv::DecisionVector) = 
+    view(dv.decisionVector, GetStateIndeciesAtInitialTime(dv))
+GetStateVectorAtFinalTime(dv::DecisionVector) = 
+    view(dv.decisionVector, GetStateIndeciesAtFinalTime(dv))
+
 # Get control indicies at discretization point
 function GetControlIndeciesAtDiscretizationPoint(dv::DecisionVector, dp)
     if dp > dv.numDiscretizationPoints
@@ -316,9 +322,15 @@ end
 
 # Get control indicies at initial or final time
 GetControlIndeciesAtInitialTime(dv::DecisionVector) = 
-    GetControlAtDiscretizationPoint(dv, 1)
+    GetControlIndeciesAtDiscretizationPoint(dv, 1)
 GetControlIndeciesAtFinalTime(dv::DecisionVector) = 
-    GetControlAtDiscretizationPoint(dv, dv.numDiscretizationPoints)
+    GetControlIndeciesAtDiscretizationPoint(dv, dv.numDiscretizationPoints)
+
+# Get control vector at initial or final time
+GetControlVectorAtInitialTime(dv::DecisionVector) = 
+    view(dv.decisionVector, GetControlIndeciesAtInitialTime(dv))
+GetControlVectorAtFinalTime(dv::DecisionVector) = 
+    view(dv.decisionVector, GetControlIndeciesAtFinalTime(dv))
 
 # Get static parameter indecies
 function GetStaticParameterIndecies(dv::DecisionVector)

@@ -66,11 +66,31 @@ function GetStateDecisionVectorIndecies(ps::PhaseSet, phaseNum::Int, timeFlag::B
     return stateIndecies
 end
 
+function GetStateVector!(sv::AbstractVector, ps::PhaseSet, phaseNum::Int, timeFlag::Bool)
+    sv .= (timeFlag == false ? 
+        GetStateVectorAtInitialTime(ps.pt[phaseNum].decisionVector) :
+        GetStateVectorAtFinalTime(ps.pt[phaseNum].decisionVector))
+    return nothing
+end
+
 function GetStateDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int}, timeFlags::Vector{Bool})
     if length(phaseNums) != length(timeFlags)
         error("Length of phaseNums must be equal to length of timeFlags.")
     end
     return [GetStateDecisionVectorIndecies(ps, phaseNums[i], timeFlags[i]) for i in 1:length(phaseNums)]
+end
+
+function GetStateVector!(sv::AbstractVector, ps::PhaseSet, phaseNums::Vector{Int}, timeFlags::Vector{Bool})
+    if length(phaseNums) != length(timeFlags)
+        error("Length of phaseNums mustm be equal to length of timeFlags.")
+    end
+    idx0 = 1
+    for i in 1:length(phaseNums)
+        idxf = idx0 + GetNumberOfStates(ps.pt[phaseNums[i]].decisionVector) - 1
+        GetStateVector!(view(sv, idx0:idxf), ps, phaseNums[i], timeFlags[i])
+        idx0 += 1
+    end
+    return nothing
 end
 
 # Get control indicies of phase i at initial or final time
@@ -94,11 +114,31 @@ function GetControlDecisionVectorIndecies(ps::PhaseSet, phaseNum::Int, timeFlag:
     return controlIndecies
 end
 
+function GetControlVector!(cv::AbstractVector, ps::PhaseSet, phaseNum::Int, timeFlag::Bool)
+    cv .= (timeFlag == false ? 
+        GetControlVectorAtInitialTime(ps.pt[phaseNum].decisionVector) :
+        GetControlVectorAtFinalTime(ps.pt[phaseNum].decisionVector))
+    return nothing
+end
+
 function GetControlDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int}, timeFlags::Vector{Bool})
     if length(phaseNums) != length(timeFlags)
         error("Length of phaseNums must be equal to length of timeFlags.")
     end
     return [GetControlDecisionVectorIndecies(ps, phaseNums[i], timeFlags[i]) for i in 1:length(phaseNums)]
+end
+
+function GetControlVector!(cv::AbstractVector, ps::PhaseSet, phaseNums::Vector{Int}, timeFlags::Vector{Bool})
+    if length(phaseNums) != length(timeFlags)
+        error("Length of phaseNums mustm be equal to length of timeFlags.")
+    end
+    idx0 = 1
+    for i in 1:length(phaseNums)
+        idxf = idx0 + GetNumberOfControls(ps.pt[phaseNums[i]].decisionVector) - 1
+        GetControlVector!(view(cv, idx0:idxf), ps, phaseNums[i], timeFlags[i])
+        idx0 += 1
+    end
+    return nothing
 end
 
 # Get time indicies of phase i at initial or final time
@@ -122,11 +162,27 @@ function GetTimeDecisionVectorIndecies(ps::PhaseSet, phaseNum::Int, timeFlag::Bo
     return timeIndex
 end
 
+function GetTime(ps::PhaseSet, phaseNum::Int, timeFlag::Bool)
+    return (timeFlag == false ? 
+        GetInitialTime(ps.pt[phaseNum].decisionVector) : 
+        GetFinalTime(ps.pt[phaseNum].decisionVector))
+end
+
 function GetTimeDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int}, timeFlags::Vector{Bool})
     if length(phaseNums) != length(timeFlags)
         error("Length of phaseNums must be equal to length of timeFlags.")
     end
     return [GetTimeDecisionVectorIndecies(ps, phaseNums[i], timeFlags[i]) for i in 1:length(phaseNums)]
+end
+
+function GetTimeVector!(tv::AbstractVector, ps::PhaseSet, phaseNums::Vector{Int}, timeFlags::Vector{Bool})
+    if length(phaseNums) != length(timeFlags)
+        error("Length of phaseNums must be equal to length of timeFlags.")
+    end
+    for i in 1:length(phaseNums)
+        tv[i] = GetTime(ps, phaseNums[i], timeFlags[i])
+    end
+    return nothing
 end
 
 # Get static indicies of phase i 
@@ -146,6 +202,14 @@ function GetStaticDecisionVectorIndecies(ps::PhaseSet, phaseNum::Int)
     return staticIndecies
 end
 
+# Get static vector
+function GetStaticVector!(sv::AbstractVector, ps::PhaseSet, phaseNum::Int)
+    if GetNumberOfStatics(ps.pt[phaseNum].decisionVector) > 0
+        sv .= GetStaticParameters(ps.pt[phaseNum].decisionVector)
+    end
+    return nothing
+end
+
 function GetStaticDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int})
     # Created new phase num vector with no repeated phases
     if length(phaseNums) > 1
@@ -159,6 +223,18 @@ function GetStaticDecisionVectorIndecies(ps::PhaseSet, phaseNums::Vector{Int})
         phaseNumsNoRep = phaseNums
     end
     return [GetStaticDecisionVectorIndecies(ps, phaseNumsNoRep[i]) for i in 1:length(phaseNumsNoRep)]
+end
+
+function GetStaticVector!(sv::AbstractVector, ps::PhaseSet, phaseNums::Vector{Int})
+    idx0 = 1
+    for i in 1:length(phaseNums)
+        if i == 1 || !(phaseNums[i] ∈ view(phaseNums, 1:i-1))
+            idxf = idx0 + GetNumberOfStatics(ps.pt[phaseNums[i]].decisionVector) - 1
+            GetStaticVector!(view(sv, idx0:idxf), ps, phaseNums[i])
+            idx0 += 1
+        end
+    end
+    return nothing
 end
 
 function SetDecisionVector!(ps::PhaseSet, decVec)
