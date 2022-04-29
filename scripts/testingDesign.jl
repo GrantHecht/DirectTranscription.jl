@@ -78,9 +78,10 @@ SetTimeGuess!(phase, initialGuessTime, finalGuessTime)
 SetLinearStateNoControlGuess!(phase, initialGuessState, finalGuessState)
 
 # Create Trajectory
-trajData = DirectTranscription.TrajectoryData(DirectTranscription.PhaseSet(phase), 
-                                              pointFuncSet)
+trajData = DirectTranscription.TrajectoryData(DirectTranscription.PhaseSet(phase), pointFuncSet)
 DirectTranscription.EvaluateFunctions!(trajData)                                             
+DirectTranscription.EvaluateJacobians!(trajData)
+
 # Testing evaluation
 #DirectTranscription.PrepareForEvaluation!(phase)
 #DirectTranscription.EvaluateFunctions!(phase)

@@ -34,7 +34,7 @@
 #   t = [t_1, t_2, ..., t_N] where t_j is the time
 #   corresponding to P_j
 
-abstract type PointFunction{type <:FunctionType} <: UserFunction{type} end
+abstract type PointFunction{type <: FunctionType} <: UserFunction{type} end
 
 # ===== PointFunction contructors (wrapper for specific path function type constructors)
 # AD point function constructor
@@ -72,3 +72,24 @@ function SetAlgebraicFunctionUpperBounds!(pf::PointFunction{Algebraic}, UB::Vect
     end
     return nothing
 end
+
+# Method to evaluate all jacobians
+function EvaluateJacobians!(fp::PointFunction,
+    state::AbstractVector,
+    control::AbstractVector,
+    static::AbstractVector,
+    time::Union{AbstractFloat,AbstractVector})
+
+    # Evaluate all jacobians
+    EvaluateJacobian(State(), fp, fp.stateJac, state, control, static, time)
+    EvaluateJacobian(Control(), fp, fp.controlJac, state, control, static, time)
+    EvaluateJacobian(Static(), fp, fp.staticJac, state, control, static, time)
+    EvaluateJacobian(Time(), fp, fp.timeJac, state, control, static, time)
+    return nothing
+end
+
+# Methods to get jacobians
+GetJacobian(jacType::State,   fp::PointFunction) = fp.stateJac 
+GetJacobian(jacType::Control, fp::PointFunction) = fp.controlJac
+GetJacobian(jacType::Static,  fp::PointFunction) = fp.staticJac 
+GetJacobian(jacType::Time,    fp::PointFunction) = fp.timeJac

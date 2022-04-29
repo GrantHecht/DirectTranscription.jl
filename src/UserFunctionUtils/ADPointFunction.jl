@@ -34,6 +34,12 @@ struct ADPointFunction{type, PFT, SJC, CJC, STJC, TJC} <: PointFunction{type}
     # Allocated output vector
     fOut::Vector{Float64}
 
+    # Allocated jacobian matricies
+    stateJac::Matrix{Float64}
+    controlJac::Matrix{Float64}
+    staticJac::Matrix{Float64}
+    timeJac::Matrix{Float64}
+
     # Jacobian sparsity patterns
     stateSP::SparseMatrixCSC{Bool, Int}
     controlSP::SparseMatrixCSC{Bool, Int}
@@ -91,6 +97,12 @@ function ADPointFunction(type::FunctionType, func!::Function, nFuncs::Int,
     end
     static      = rand(numStatic)
 
+    # Allocate jacobian matricies
+    stateJac    = zeros(nFuncs, sum(nStates))
+    controlJac  = zeros(nFuncs, sum(nControls))
+    staticJac   = zeros(nFuncs, sum(nStatic))
+    timeJac     = zeros(nFuncs, length(pointTimeList))
+
     # Detect sparsity patterns and generate jacobian configuration objects
     if sum(nStates) > 0
         stateSP = jacobian_sparsity((y,x)->func!(y,x,controls,static,time),out,states)
@@ -127,6 +139,7 @@ function ADPointFunction(type::FunctionType, func!::Function, nFuncs::Int,
     TJC     = typeof(timeJC)
     ADPointFunction{typeof(type),PFT,SJC,CJC,STJC,TJC}(func!,nFuncs,LB,UB, 
         pointPhaseList,pointTimeList,nStates,nControls,nStatic,Vector{String}(undef, 0),out,
+        stateJac, controlJac, staticJac, timeJac,
         stateSP,controlSP,staticSP,timeSP,stateJC,controlJC,staticJC,timeJC)
 end
 
@@ -145,7 +158,8 @@ function EvaluateJacobian(jacType::State,
                           state::AbstractVector,
                           control::AbstractVector,
                           static::AbstractVector,
-                          time::AbstractFloat) where {type,PFT,SJC<:ForwardDiff.JacobianConfig,CJC,STJC,TJC}
+                          time::Union{AbstractFloat,AbstractVector}) where 
+                            {type,PFT,SJC<:ForwardDiff.JacobianConfig,CJC,STJC,TJC}
     # Only evaluate if Jacobian has nonzero entries
     if nnz(fp.stateSP) > 0
         ForwardDiff.jacobian!(jac, (y,x)->fp.func!(y,x,control,static,time),
@@ -160,7 +174,8 @@ function EvaluateJacobian(jacType::State,
                           state::AbstractVector,
                           control::AbstractVector,
                           static::AbstractVector,
-                          time::AbstractFloat) where {type,PFT,SJC<:Nothing,CJC,STJC,TJC}
+                          time::Union{AbstractFloat,AbstractVector}) where 
+                            {type,PFT,SJC<:Nothing,CJC,STJC,TJC}
     return nothing
 end
 
@@ -170,7 +185,8 @@ function EvaluateJacobian(jacType::Control,
                           state::AbstractVector,
                           control::AbstractVector,
                           static::AbstractVector,
-                          time::AbstractFloat) where {type,PFT,SJC,CJC<:ForwardDiff.JacobianConfig,STJC,TJC}
+                          time::Union{AbstractFloat,AbstractVector}) where 
+                            {type,PFT,SJC,CJC<:ForwardDiff.JacobianConfig,STJC,TJC}
     if nnz(fp.controlSP) > 0
         ForwardDiff.jacobian!(jac, (y,u)->fp.func!(y,state,u,static,time),
             fp.fOut, control, fp.controlJC, Val{false}())
@@ -184,7 +200,8 @@ function EvaluateJacobian(jacType::Control,
                           state::AbstractVector,
                           control::AbstractVector,
                           static::AbstractVector,
-                          time::AbstractFloat) where {type,PFT,SJC,CJC<:Nothing,STJC,TJC}
+                          time::Union{AbstractFloat,AbstractVector}) where 
+                            {type,PFT,SJC,CJC<:Nothing,STJC,TJC}
     return nothing
 end
 
@@ -194,7 +211,8 @@ function EvaluateJacobian(jacType::Static,
                           state::AbstractVector,
                           control::AbstractVector,
                           static::AbstractVector,
-                          time::AbstractFloat) where {type,PFT,SJC,CJC,STJC<:ForwardDiff.JacobianConfig,TJC}
+                          time::Union{AbstractFloat,AbstractVector}) where 
+                            {type,PFT,SJC,CJC,STJC<:ForwardDiff.JacobianConfig,TJC}
     if nnz(fp.stateSP) > 0
         ForwardDiff.jacobian!(jac, (y,p)->fp.func!(y,state,control,p,time),
             fp.fOut, static, fp.staticJC, Val{false}())
@@ -208,7 +226,8 @@ function EvaluateJacobian(jacType::Static,
                           state::AbstractVector,
                           control::AbstractVector,
                           static::AbstractVector,
-                          time::AbstractFloat) where {type,PFT,SJC,CJC,STJC<:Nothing,TJC}
+                          time::Union{AbstractFloat,AbstractVector}) where 
+                            {type,PFT,SJC,CJC,STJC<:Nothing,TJC}
     return nothing
 end
 
@@ -218,10 +237,32 @@ function EvaluateJacobian(jacType::Time,
                           state::AbstractVector,
                           control::AbstractVector,
                           static::AbstractVector,
-                          time::AbstractFloat) where {type,PFT,SJC,CJC,STJC,TJC}
+                          time::AbstractFloat) where 
+                            {type,PFT,SJC,CJC,STJC,TJC}
     if nnz(fp.timeSP) > 0
         ForwardDiff.jacobian!(jac, (y,t)->fp.func!(y,state,control,static,t[1]),
             fp.fOut, @SVector([time]), fp.timeJC, Val{false}())
     end
     return nothing
 end
+
+function EvaluateJacobian(jacType::Time,
+                          fp::ADPointFunction{type,PFT,SJC,CJC,STJC,TJC},
+                          jac::AbstractVecOrMat,
+                          state::AbstractVector,
+                          control::AbstractVector,
+                          static::AbstractVector,
+                          time::AbstractVector) where 
+                            {type,PFT,SJC,CJC,STJC,TJC}
+    if nnz(fp.timeSP) > 0
+        #if length(fp.pointTimeList) == 1
+        #    EvaluateJacobian(Time(), fp, jac, state, control, static, time[1])
+        #else
+            ForwardDiff.jacobian!(jac, (y,t)->fp.func!(y,state,control,static,t),
+                fp.fOut, time, fp.timeJC, Val{false}())
+        #end
+    end
+    return nothing
+end
+
+

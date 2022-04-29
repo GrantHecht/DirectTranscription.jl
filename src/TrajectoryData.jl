@@ -340,8 +340,8 @@ end
 # Method to evaluate point function jacobians
 function EvaluatePointJacobians!(td::TrajectoryData)
     # Jacobian initial row for current point function
-    algRow0     = 1
-    costRow0    = 1
+    algIdx0     = 1
+    costIdx0    = 1
     for i in 1:length(td.pfSet.pft)
         # Grab point phase and time lists
         pointPhaseList = td.pfSet.pft[i].pointPhaseList 
@@ -352,16 +352,76 @@ function EvaluatePointJacobians!(td::TrajectoryData)
         GetControlVector!(td.controls, td.phaseSet, pointPhaseList, pointTimeList)
         GetStaticVector!(td.static, td.phaseSet, pointPhaseList)
         GetTimeVector!(td.times, td.phaseSet, pointPhaseList, pointTimeList)
+
+        # Evaluate Jacobians
+        nStates     = sum(td.pfSet.pft[i].nStates)
+        nControls   = sum(td.pfSet.pft[i].nControls)
+        nStatic     = sum(td.pfSet.pft[i].nStatic)
+        nTimes      = length(pointTimeList)
+        EvaluateJacobians!(td.pfSet.pft[i], view(td.states, 1:nStates), view(td.controls, 1:nControls), 
+            view(td.static, 1:nStatic), view(td.times, 1:nTimes))
+
+        # Get Jacobians
+        stateJac    = GetJacobian(State(), td.pfSet.pft[i])
+        controlJac  = GetJacobian(Control(), td.pfSet.pft[i])
+        staticJac   = GetJacobian(Static(), td.pfSet.pft[i])
+        timeJac     = GetJacobian(Time(), td.pfSet.pft[i])
+
+        # Get correct function data object and final row index
+        if GetFunctionType(td.pfSet.pft[i]) <: Algebraic
+            fd      = td.constraintPointFunctionData
+            idx0    = algIdx0
+            idxf    = algIdx0 + td.pfSet.pft[i].nFuncs - 1
+        else
+            fd      = td.costPointFunctionData
+            idx0    = costIdx0
+            idxf    = costIdx0 + td.pfSet.pft[i].nFuncs - 1
+        end
+
+        # Get parameter indecies (Don't like calling these here! Each allocates a vector.)
+        stateIndecies   = GetStateDecisionVectorIndecies(td.phaseSet, pointPhaseList, pointTimeList)
+        controlIndecies = GetControlDecisionVectorIndecies(td.phaseSet, pointPhaseList, pointTimeList)
+        staticIndecies  = GetStaticDecisionVectorIndecies(td.phaseSet, pointPhaseList)
+        timeIndecies    = GetTimeDecisionVectorIndecies(td.phaseSet, pointPhaseList, pointTimeList)
+
+        # Initial colomn index trackers for point function jacobians
+        stateIdx0   = 1
+        controlIdx0 = 1
+        staticIdx0  = 1
+        timeIdx     = 1
+
+        # Set Jacobian Values
+        for i in 1:length(stateIndecies)
+            if length(stateIndecies[i]) < 1
+                stateIdxf   = stateIdx0 + length(stateIndecies[i]) - 1
+                dView       = GetDMatrixView(fd, idx0:idxf, stateIndecies[i])
+                dView       .= view(stateJac, :, stateIdx0:stateIdxf)
+                stateIdx0   = stateIdxf + 1
+            end
+
+            if length(controlIndecies[i]) < 1
+                controlIdxf = controlIdx0 + length(controlIndecies[i]) - 1
+                dView       = GetDMatrixView(fd, idx0:idxf, controlIndecies[i])
+                dView       .= view(controlJac, :, controlIdx0:controlIdxf)
+                controlIdx0 = controlIdxf + 1
+            end
+
+            dView       = GetDMatrixView(fd, idx0:idxf, timeIndecies[i])
+            dView       .= view(timeJac, :, timeIdx)
+            timeIdx     += 1
+
+            if i <= length(staticIndecies) && length(staticIndecies[i]) < 1
+                staticIdxf  = staticIdx0 + length(staticIndecies[i]) - 1
+                dView       = GetDMatrixView(fd, idx0:idxf, staticIndecies[i])
+                dView       .= view(staticJac, :, staticIdx0:staticIdxf)
+                staticIdx0  = staticIdxf + 1
+            end
+        end
+
         if GetFunctionType(td.pfSet.pft[i]) <: Algebraic 
-            # Compute final row index
-            idxf = algIdx0 + td.pfSet.pft[i].nFuncs - 1
-
-            # ===== State Jacobian
-            # Get state indecies
-            stateIndecies = GetStateDecisionVectorIndecies(phaseSet, pointPhaseList, pointTimeList)
-
+            algIdx0 = idxf + 1
         elseif GetFunctionType(td.pfSet.pft[i]) <: Cost
-
+            costIdx0 = idxf + 1
         end
     end
 end

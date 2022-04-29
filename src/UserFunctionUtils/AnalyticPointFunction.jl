@@ -35,6 +35,12 @@ struct AnalyticPointFunction{type,PFT,SJT,CJT,STJT,TJT}
     # Name of user defined functions
     funcNames::Vector{String}
 
+    # Allocated jacobian matricies
+    stateJac::Matrix{Float64}
+    controlJac::Matrix{Float64}
+    staticJac::Matrix{Float64}
+    timeJac::Matrix{Float64}
+
     # Jacobian sparsity patterns
     stateSP::SparseMatrixCSC{Bool, Int}
     controlSP::SparseMatrixCSC{Bool, Int}
@@ -61,7 +67,8 @@ function AnalyticPointFunction(type::FunctionType, func!::Function, stateJac!::U
     STJT    = typeof(staticJac!)
     TJT     = typeof(timeJac!)
     AnalyticPointFunction{typeof(type),PFT,SJT,CJT,STJT,TJT}(func!,stateJac!,controlJac!,staticJac!,timeJac!, 
-        nFuncs,LB,UB,pointPhaseList,pointTimeList,nStates,nControls,nStatic,Vector{String}(undef, 0), 
+        nFuncs,LB,UB,pointPhaseList,pointTimeList,nStates,nControls,nStatic,Vector{String}(undef, 0),
+        zeros(nFuncs, sum(nStates)), zeros(nFuncs, sum(nControls)), zeros(nFuncs, sum(nStatic)), zeros(nFuncs, length(pointTimeList)),
         GetMatrixSparsity(stateSP),GetMatrixSparsity(controlSP),GetMatrixSparsity(staticSP),GetMatrixSparsity(timeSP))
 end
 

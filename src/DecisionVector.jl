@@ -339,7 +339,7 @@ function GetStaticParameterIndecies(dv::DecisionVector)
         idx1 = idx0 + dv.nStatic - 1
         return idx0:idx1
     else
-        return -1:0
+        return 0:-1
     end
 end
 
