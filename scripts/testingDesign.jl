@@ -55,8 +55,8 @@ meshIntervalNumPoints = [2,2,2,2]
 phase = Phase(ImplicitRK(), pathFuncSet, meshIntervalFractions, meshIntervalNumPoints)
 
 # Set time properties
-timeLowerBound      = 0.0
-timeUpperBound      = 100.0
+timeLowerBound      = [0.0, 0.0]
+timeUpperBound      = [0.0, 100.0]
 initialGuessTime    = 0.0
 finalGuessTime      = 0.3 
 
@@ -86,3 +86,21 @@ DirectTranscription.EvaluateJacobians!(trajData)
 #DirectTranscription.PrepareForEvaluation!(phase)
 #DirectTranscription.EvaluateFunctions!(phase)
 #DirectTranscription.EvaluateJacobians!(phase)
+x       = trajData.phaseSet.pt[1].decisionVector.decisionVector
+x       = rand(length(x))
+nCons   = DirectTranscription.GetNumberOfConstraints(trajData)
+g       = zeros(nCons)
+gradF   = zeros(length(x))
+DirectTranscription.IpoptEvaluateF(trajData, x)
+DirectTranscription.IpoptEvaluateG!(trajData, g, x)
+DirectTranscription.IpoptEvaluateGradF!(trajData, gradF, x)
+
+numNz   = DirectTranscription.IpoptGetNumberOfJacobianNonZeros(trajData)
+rows    = zeros(numNz)
+cols    = zeros(numNz)
+vals    = zeros(numNz)
+DirectTranscription.IpoptEvaluateJacG!(trajData, nothing, rows, cols, x)
+DirectTranscription.IpoptEvaluateJacG!(trajData, vals, rows, cols, x)
+
+traj    = Trajectory(phase, pointFuncSet)
+DirectTranscription.Optimize!(traj)

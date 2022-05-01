@@ -20,8 +20,8 @@ mutable struct DecisionVector
     staticLB::Vector{Float64}
 
     # Time bounds 
-    timeUB::Float64
-    timeLB::Float64
+    timeUB::Vector{Float64}
+    timeLB::Vector{Float64}
 
     # Number of discretization points
     numDiscretizationPoints::Int
@@ -69,8 +69,8 @@ mutable struct DecisionVector
         controlLB       = Vector{Float64}(undef, nControls)
         staticUB        = Vector{Float64}(undef, nStatic)
         staticLB        = Vector{Float64}(undef, nStatic)
-        timeUB          = 0.0
-        timeLB          = 0.0
+        timeUB          = [0.0, 0.0]
+        timeLB          = [0.0, 0.0]
 
         # Set bound initialization flags
         stateBoundsSet      = (nStates > 0 ? false : true)
@@ -193,10 +193,25 @@ function SetStaticBounds!(dv::DecisionVector, ub, lb)
 
     return nothing
 end
-function SetTimeBounds!(dv::DecisionVector, ub, lb)
+function SetTimeBounds!(dv::DecisionVector, ub::Number, lb::Number)
     # Set bounds 
-    dv.timeUB = ub 
-    dv.timeLB = lb
+    for i in 1:2
+        dv.timeUB[i] = ub 
+        dv.timeLB[i] = lb
+    end
+
+    # Set state bounds set flag 
+    dv.timeBoundsSet = true
+
+    # Check initialization
+    CheckIfInitialized!(dv)
+
+    return nothing
+end
+function SetTimeBounds!(dv::DecisionVector, ub::AbstractVector, lb::AbstractVector)
+    # Set bounds 
+    dv.timeUB .= ub 
+    dv.timeLB .= lb
 
     # Set state bounds set flag 
     dv.timeBoundsSet = true
@@ -365,3 +380,35 @@ GetStateAtDiscretizationPoint(dv::DecisionVector, dp) =
 # Get control at discretization point
 GetControlAtDiscretizationPoint(dv::DecisionVector, dp) = 
     view(dv.decisionVector, GetControlIndeciesAtDiscretizationPoint(dv, dp))
+
+# Get decision vector bounds
+function GetDecisionVectorBounds!(dv::DecisionVector, xLB, xUB)
+    idx0 = 1
+    @inbounds for i in 1:dv.numDiscretizationPoints
+        # States
+        if dv.nStates > 0
+            idxf = idx0 + dv.nStates - 1
+            xLB[idx0:idxf] .= dv.stateLB 
+            xUB[idx0:idxf] .= dv.stateUB
+            idx0 = idxf + 1
+        end
+
+        # Controls
+        if dv.nControls > 0
+            idxf = idx0 + dv.nControls - 1
+            xLB[idx0:idxf] .= dv.controlLB
+            xUB[idx0:idxf] .= dv.controlUB
+            idx0 = idxf + 1
+        end
+    end
+    if dv.nStatic > 0
+        idxf = idx0 + 1
+        xLB[idx0:idxf] .= dv.staticLB 
+        xUB[idx0:idxf] .= dv.staticUB
+    end
+    xLB[end - 1] = dv.timeLB[1]
+    xLB[end] = dv.timeLB[2]
+    xUB[end - 1] = dv.timeUB[1]
+    xUB[end] = dv.timeUB[2]
+    return nothing
+end

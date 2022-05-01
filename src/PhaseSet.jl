@@ -45,6 +45,17 @@ end
 # Get total number of decision variables
 GetNumberOfDecisionVariables(ps::PhaseSet) = sum(GetNumberOfDecisionVariables.(ps.pt))
 
+# Get the full problem decision vector
+function GetDecisionVector(ps::PhaseSet)
+    dv      = zeros(GetNumberOfDecisionVariables(ps))
+    idx0    = 1
+    for i in 1:length(ps.pt)
+        idxf = idx0 + GetNumberOfDecisionVariables(ps.pt[i].decisionVector) - 1
+        dv[idx0:idxf] .= ps.pt[i].decisionVector.decisionVector
+    end
+    return dv
+end
+
 # Get state indicies of phase i at initial or final time
 # timeFlag = false - Initial time of phase phaseNum
 # timeFlag = true  - Final time of phase phaseNum
@@ -246,7 +257,7 @@ function SetDecisionVector!(ps::PhaseSet, decVec)
     # Set the decision vector for each phase
     idx0 = 1
     for i in 1:length(ps.pt)
-        idxf = idx0 + ps.pt[i] - 1
+        idxf = idx0 + GetNumberOfDecisionVariables(ps.pt[i]) - 1
         SetDecisionVector!(ps.pt[i], view(decVec, idx0:idxf))
         idx0 = idxf + 1        
     end

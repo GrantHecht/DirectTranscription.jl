@@ -274,3 +274,35 @@ function EvaluateJacobians!(p::ImplicitRKPhase)
     end
 end
 
+# Get the total number of constraints for the phase
+function GetNumberOfConstraints(p::ImplicitRKPhase)
+    numCons = GetNumberOfStates(p.pathFuncSet)*GetNumberOfDefectConstraints(p.tMan)
+    numCons += length(p.tMan.AlgebraicData.qVector)
+end
+
+# Get the integral cost function (i.e., evaluate quadrature)
+function GetIntegralCost(p::ImplicitRKPhase) 
+    if HasCostFunctions(p.pathFuncSet)
+        cost = GetIntegralCost(p.tMan)
+    else
+        cost = 0.0
+    end
+    return cost
+end
+
+function GetIntegralCostJacobian!(p::ImplicitRKPhase, grad)
+    if HasCostFunctions(p.pathFuncSet)
+        p .+= p.tMan.QuadratureData.BMatrix*p.tMan.QuadratureData.DMatrix
+    end
+    return nothing
+end
+
+function GetPhaseConstraints!(p::ImplicitRKPhase, g)
+    # Get defect constraints
+    nDefects = GetNumberOfStates(p.pathFuncSet)*GetNumberOfDefectConstraints(p.tMan)
+    GetDefectConstraints!(p.tMan, view(g, 1:nDefects), p.decisionVector.decisionVector)
+
+    # Get algebraic constriants
+    g[nDefects + 1:end] .= p.tMan.AlgebraicData.qVector
+    return nothing
+end

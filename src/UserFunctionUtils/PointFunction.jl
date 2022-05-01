@@ -70,6 +70,7 @@ function SetAlgebraicFunctionUpperBounds!(pf::PointFunction{Algebraic}, UB::Vect
     if length(UB) != pf.nFuncs
         error("Algebraic function upper bounds not set to the correct length.")
     end
+    pf.UB .= UB  
     return nothing
 end
 

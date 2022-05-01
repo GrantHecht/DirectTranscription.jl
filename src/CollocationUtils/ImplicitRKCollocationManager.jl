@@ -628,3 +628,16 @@ function PrepareForEvaluation!(irkMan::ImplicitRKCollocationManager, decVec)
     end
     return nothing
 end
+
+# Function go get integral cost (i.e., evaluate quadrature)
+GetIntegralCost(irkMan::ImplicitRKCollocationManager) = 
+    irkMan.QuadratureData.BMatrix*irkMan.QuadratureData.qVector
+
+# Function to get defect constriants
+function GetDefectConstraints!(irkMan::ImplicitRKCollocationManager, g, x) 
+    # Likely want to find a better way to perform this multiplication
+    # (Each multiplication allocates a vector to temporarally store the product)
+    g .= irkMan.NLPData.AMatrix*x
+    g .+= irkMan.NLPData.BMatrix*irkMan.NLPData.qVector
+    return nothing
+end

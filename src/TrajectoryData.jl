@@ -53,6 +53,8 @@ function TrajectoryData(phaseSet, pfSet)
     maxNControls= 0
     maxNStatic  = 0
     maxNTimes   = 0
+    gLB         = Vector{Float64}(undef, 0)
+    gUB         = Vector{Float64}(undef, 0)
     for i in 1:length(pfSet.pft)
         # Get function information
         pointPhaseList  = pfSet.pft[i].pointPhaseList
@@ -61,6 +63,12 @@ function TrajectoryData(phaseSet, pfSet)
         nStates         = pfSet.pft[i].nStates
         nControls       = pfSet.pft[i].nControls
         nStatic         = pfSet.pft[i].nStatic
+
+        if GetFunctionType(pfSet.pft[i]) <: Algebraic
+            # Get function bounds
+            gLB             = vcat(gLB, pfSet.pft[i].LB)
+            gUB             = vcat(gUB, pfSet.pft[i].UB)
+        end
 
         # Check for max parameters
         sumNStates      = sum(nStates)
@@ -251,6 +259,10 @@ function TrajectoryData(phaseSet, pfSet)
         GetNumberOfCostFunctions(pfSet), 
         GetNumberOfDecisionVariables(phaseSet))
 
+    # Set lower and upper bounds for constraint functions
+    SetFunctionLowerBounds!(conPointFuncData, gLB)
+    SetFunctionUpperBounds!(conPointFuncData, gUB)
+
     # Set lower and upper bounds for cost function (not actually required
     # in the optimal control problem formulation, but required due to the 
     # use of AlgebraicFunctionData to manage cost function info)
@@ -425,4 +437,289 @@ function EvaluatePointJacobians!(td::TrajectoryData)
         end
     end
 end
+
+# ===== Functions for evaluation
+
+# Evaluate the objective function for IPOPT
+function IpoptEvaluateF(data::TrajectoryData, x)
+    # Set the decision vector
+    SetDecisionVector!(data, x)
+
+    # Evaluate functions
+    EvaluateFunctions!(data)
+
+    # Compute objective 
+    obj = sum(data.costPointFunctionData.qVector)
+    obj += GetPhaseIntegralCosts(data)
+    return obj
+end
+
+# Evaluate the constraints for IPOPT
+function IpoptEvaluateG!(data::TrajectoryData, g, x)
+    # Set the decision vector
+    SetDecisionVector!(data, x)
+
+    # Evaluate functions
+    EvaluateFunctions!(data)
+
+    # Fill g with phase constraints
+    @inbounds for i in 1:length(g); g[i] = 0.0; end
+    c0 = 1
+    @inbounds for i in 1:length(data.phaseSet.pt)
+        # Get number of constraints in current phase
+        numCons = GetNumberOfConstraints(data.phaseSet.pt[i])
+        cf      = c0 + numCons - 1
+
+        # Get constraints
+        GetPhaseConstraints!(data.phaseSet.pt[i], view(g, c0:cf))
+        c0      = cf + 1
+    end
+
+    # Full g with algebraic constraints
+    nAlgCons = length(data.constraintPointFunctionData.qVector)
+    @inbounds for i in 1:nAlgCons
+        g[c0 + i - 1] = data.constraintPointFunctionData.qVector[i]
+    end
+end
+
+# Function to evaluate gradient of the objective function
+function IpoptEvaluateGradF!(data::TrajectoryData, gradF, x)
+    # Set the decision vector
+    SetDecisionVector!(data, x)
+
+    # Evaluate Jacobians
+    EvaluateJacobians!(data)
+
+    # Fill grad with point constraint gradient
+    vals = nonzeros(data.costPointFunctionData.DMatrix)
+    m, n = size(data.costPointFunctionData.DMatrix)
+    @inbounds for j in 1:n
+        for i in nzrange(data.costPointFunctionData.DMatrix, j)
+            gradF[j] = vals[i]
+        end
+    end
+
+    # Fill grad with integral cost gradient
+    c0 = 1
+    @inbounds for i in 1:length(data.phaseSet.pt)
+        # Get number of decision variables in phase
+        nDecVars    = GetNumberOfDecisionVariables(data.phaseSet.pt[i])
+        cf          = c0 + nDecVars - 1
+
+        # Get the integral cost gradient
+        GetIntegralCostJacobian!(data.phaseSet.pt[i], view(gradF, c0:cf))
+        c0          = cf + 1
+    end
+    return nothing
+end
+
+# Function to evaluate the constraint Jacobian
+function IpoptEvaluateJacG!(data::TrajectoryData, values, rows, cols, x)
+    # !!!!! Sparse matrix manipulation in this function should be improved !!!!!
+    if values === nothing
+        idx = 1
+        r0  = 1
+        c0  = 1
+        # Loop through phases and set row and col values
+        for i in 1:length(data.phaseSet.pt)
+            # Get data 
+            nlpData = data.phaseSet.pt[i].tMan.NLPData
+            algData = data.phaseSet.pt[i].tMan.AlgebraicData
+
+            # Get sparsity pattern for defect constraint A + BD
+            #   This seems inefficient but need a way to preserve full sparsity pattern even when some 
+            #   elements are zero now
+            Anz     = findnz(nlpData.AMatrix)
+            Bnz     = findnz(nlpData.BMatrix)
+            Dnz     = findnz(nlpData.DMatrix) 
+            Asp     = sparse(Anz[1],Anz[2],ones(length(Anz[1])), size(nlpData.AMatrix)...)
+            Bsp     = sparse(Bnz[1],Bnz[2],ones(length(Bnz[1])), size(nlpData.BMatrix)...)
+            Dsp     = sparse(Dnz[1],Dnz[2],ones(length(Dnz[1])), size(nlpData.DMatrix)...)
+            ApBD    = Asp + Bsp*Dsp
+
+            # Add ApBD sparsity pattern to rows and cols
+            m, n    = size(ApBD)
+            rs      = rowvals(ApBD)
+            @inbounds for j in 1:n
+                for i in nzrange(ApBD, j)
+                    rows[idx] = r0 + rs[i] - 1
+                    cols[idx] = c0 + j - 1
+                    idx += 1
+                end
+            end
+            r0 += m
+
+            # Add algebraic function sparsity to rows and cols
+            m, n    = size(algData.DMatrix)
+            rs    = rowvals(algData.DMatrix)
+            @inbounds for j in 1:n
+                for i in nzrange(algData.DMatrix, j)
+                    rows[idx] = r0 + rs[i] - 1
+                    cols[idx] = c0 + j - 1
+                end
+            end
+            r0 += m
+            c0 += GetNumberOfDecisionVariables(data.phaseSet.pt[i])
+        end
+
+        # Get sparsity pattern for point constriants
+        algData = data.constraintPointFunctionData
+        m, n    = size(algData.DMatrix)
+        rs      = rowvals(algData.DMatrix)
+        @inbounds for j in 1:n
+            for i in nzrange(algData.DMatrix, j)
+                rows[idx] = r0 + rs[i] - 1
+                cols[idx] = j
+                idx += 1
+            end
+        end
+    else
+        idx = 1
+        r0  = 1
+        c0  = 1
+        # Loop through phases and set row and col values
+        for i in 1:length(data.phaseSet.pt)
+            # Get data 
+            nlpData = data.phaseSet.pt[i].tMan.NLPData
+            algData = data.phaseSet.pt[i].tMan.AlgebraicData
+
+            # Get sparsity pattern for defect constraint A + BD
+            #   This seems inefficient but need a way to preserve full sparsity pattern even when some 
+            #   elements are zero now
+            Anz     = findnz(nlpData.AMatrix)
+            Bnz     = findnz(nlpData.BMatrix)
+            Dnz     = findnz(nlpData.DMatrix) 
+            Asp     = sparse(Anz[1],Anz[2],ones(length(Anz[1])), size(nlpData.AMatrix)...)
+            Bsp     = sparse(Bnz[1],Bnz[2],ones(length(Bnz[1])), size(nlpData.BMatrix)...)
+            Dsp     = sparse(Dnz[1],Dnz[2],ones(length(Dnz[1])), size(nlpData.DMatrix)...)
+            ApBDsp  = Asp + Bsp*Dsp
+            ApBD    = nlpData.AMatrix + nlpData.BMatrix*nlpData.DMatrix
+
+            # Add ApBD sparsity pattern to rows and cols
+            m, n    = size(ApBDsp)
+            rs      = rowvals(ApBDsp)
+            @inbounds for j in 1:n
+                for i in nzrange(ApBDsp, j)
+                    values[idx] = ApBD[rs[i],j]
+                    idx += 1
+                end
+            end
+            r0 += m
+
+            # Add algebraic function sparsity to rows and cols
+            m, n    = size(algData.DMatrix)
+            rs      = rowvals(algData.DMatrix)
+            vs      = nonzeros(algData.DMatrix) 
+            @inbounds for j in 1:n
+                for i in nzrange(algData.DMatrix, j)
+                    values[idx] = vs[i]
+                    idx += 1
+                end
+            end
+            r0 += m
+            c0 += GetNumberOfDecisionVariables(data.phaseSet.pt[i])
+        end
+
+        # Get sparsity pattern for point constriants
+        algData = data.constraintPointFunctionData
+        m, n    = size(algData.DMatrix)
+        rs      = rowvals(algData.DMatrix)
+        vs      = nonzeros(algData.DMatrix)
+        @inbounds for j in 1:n
+            for i in nzrange(algData.DMatrix, j)
+                values[idx] = vs[i]
+                idx += 1
+            end
+        end
+    end
+    return nothing
+end
+
+# Function to compute the number of Ipopt jacobian nonzeros
+function IpoptGetNumberOfJacobianNonZeros(data::TrajectoryData)
+    numNz = 0
+    # Loop through phases and set row and col values
+    for i in 1:length(data.phaseSet.pt)
+        # Get data 
+        nlpData = data.phaseSet.pt[i].tMan.NLPData
+        algData = data.phaseSet.pt[i].tMan.AlgebraicData
+
+        # Get sparsity pattern for defect constraint A + BD
+        #   This seems inefficient but need a way to preserve full sparsity pattern even when some 
+        #   elements are zero now
+        Anz     = findnz(nlpData.AMatrix)
+        Bnz     = findnz(nlpData.BMatrix)
+        Dnz     = findnz(nlpData.DMatrix) 
+        Asp     = sparse(Anz[1],Anz[2],ones(length(Anz[1])), size(nlpData.AMatrix)...)
+        Bsp     = sparse(Bnz[1],Bnz[2],ones(length(Bnz[1])), size(nlpData.BMatrix)...)
+        Dsp     = sparse(Dnz[1],Dnz[2],ones(length(Dnz[1])), size(nlpData.DMatrix)...)
+        ApBD    = Asp + Bsp*Dsp
+
+        # Add ApBD number of nonzeros
+        numNz += nnz(ApBD)
+
+        # Add algebraic function sparsity to rows and cols
+        numNz += nnz(algData.DMatrix)
+    end
+
+    # Get sparsity pattern for point constriants
+    algData = data.constraintPointFunctionData
+    numNz  += nnz(algData.DMatrix)
+    return numNz
+end
+
+# Function for getting sum of all phase integral costs
+function GetPhaseIntegralCosts(data::TrajectoryData)
+    cost = 0.0
+    for i in 1:length(data.phaseSet.pt)
+        cost += GetIntegralCost(data.phaseSet.pt[i])
+    end
+    return cost
+end
+
+# Get number of constraints in NLP
+function GetNumberOfConstraints(data::TrajectoryData) 
+    nCons = length(data.constraintPointFunctionData.qVector)
+    for i in 1:length(data.phaseSet.pt)
+        nCons += GetNumberOfConstraints(data.phaseSet.pt[i])
+    end
+    return nCons
+end
+
+# Get decision vector upper and lower bounds
+function GetDecisionVectorBounds(data::TrajectoryData)
+    numDecVecs = GetNumberOfDecisionVariables(data.phaseSet)
+    idx0       = 1 
+    xLB        = zeros(numDecVecs)
+    xUB        = zeros(numDecVecs)
+    @inbounds for i in 1:length(data.phaseSet.pt)
+        idxf = idx0 + GetNumberOfDecisionVariables(data.phaseSet.pt[i]) - 1
+        GetDecisionVectorBounds!(data.phaseSet.pt[i].decisionVector, 
+            view(xLB, idx0:idxf), view(xUB, idx0:idxf))
+        idx0 = idxf + 1
+    end
+    return xLB, xUB
+end
+
+# Get constraint bounds
+function GetConstraintBounds(data::TrajectoryData)
+    nCons = GetNumberOfConstraints(data)
+    gLB   = zeros(nCons)
+    gUB   = zeros(nCons)
+    idx0  = 1
+    @inbounds for i in 1:length(data.phaseSet.pt)
+        idx0 = idx0 + GetNumberOfStates(data.phaseSet.pt[i].pathFuncSet) * 
+            GetNumberOfDefectConstraints(data.phaseSet.pt[i].tMan) 
+        idxf = idx0 + length(data.phaseSet.pt[i].tMan.AlgebraicData.qVector) - 1
+        gLB[idx0:idxf] .= data.phaseSet.pt[i].tMan.AlgebraicData.LB
+        gUB[idx0:idxf] .= data.phaseSet.pt[i].tMan.AlgebraicData.UB
+        idx0 = idxf + 1
+    end
+    idxf = idx0 + length(data.constraintPointFunctionData.qVector) - 1
+    gLB[idx0:idxf] .= data.constraintPointFunctionData.LB
+    gUB[idx0:idxf] .= data.constraintPointFunctionData.UB
+    return gLB, gUB
+end
+
+
 

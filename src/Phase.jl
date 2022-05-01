@@ -35,7 +35,19 @@ PrepareForEvaluation!(p::Phase)     = PrepareForEvaluation!(p.tMan, p.decisionVe
 EvaluateFunctions!(p::Phase)        = error("EvaluateFunctions! not defined for " * typeof(p) * ".") 
 
 # Evaluate jacobians
-EvaluateJacobians!(p::Phase)        = error("EvaluateJacobians! not defined for " * typeof(a) * ".")
+EvaluateJacobians!(p::Phase)        = error("EvaluateJacobians! not defined for " * typeof(p) * ".")
+
+# Get the number of constraints for the phase
+GetNumberOfConstraints(p::Phase)    = error("GetNumberOfConstraints not defined for " * typeof(p) * ".")
+
+# Method to get phase integral cost
+GetIntegralCost(p::Phase)           = error("GetIntegralCost not defined for " * typeof(p) * ".")
+
+# Method to get the phase integral cost gradient
+GetIntegralCostJacobian!(p::Phase, grad)    = error("GetIntegralCostJacobian! not defined for " * typeof(p) * ".")
+
+# Method to get phase constraints
+GetPhaseConstraints!(p::Phase, g)    = error("GetPhaseConstraints! not defined for " * typeof(p) * ".")
 
 # Methods to set parameter bounds
 SetStateBounds!(p::Phase, ub, lb)     = SetStateBounds!(p.decisionVector, ub, lb)
