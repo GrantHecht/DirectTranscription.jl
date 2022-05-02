@@ -192,7 +192,7 @@ function Optimize!(wrapper::SnoptWrapper)
 
         # Optimize!
         xopt, fopt, info, out = snopta(wrapper.func!, wrapper.x0, wrapper.xl, wrapper.xu, 
-            wrapper.gl, wrapper.gu, wrapper.rows, wrapper.cols, options)
+            wrapper.gl, wrapper.gu, wrapper.rows, wrapper.cols, options; A = wrapper.A)
         @inbounds wrapper.xOpt .= xopt
         wrapper.hasOptimized = true
 

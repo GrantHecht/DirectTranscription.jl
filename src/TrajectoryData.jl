@@ -503,6 +503,7 @@ function SnoptEvaluate!(data::TrajectoryData, g, df, dg, x, deriv)
         end
 
         # ===== Compute the nonlinear part of the jacobian of the constraints
+        idx = 1
         for i in 1:length(data.phaseSet.pt)
             # Get data
             nlpData = data.phaseSet.pt[i].tMan.NLPData 
@@ -818,6 +819,73 @@ function SnoptGetNumberOfNonlinearJacobianNonZeros(data::TrajectoryData)
     return numNz
 end
 
+# Function to get the sparsity pattern of the nonlinear part of NLP Jacobian
+function SnoptGetNonlinearPartJacobianSparsity(data::TrajectoryData)
+    # Get the number of nonlinear nonzeros
+    numNz   = SnoptGetNumberOfNonlinearJacobianNonZeros(data)
+
+    # Instantiate row and col vectors
+    rows    = Vector{Int64}(undef, numNz)
+    cols    = Vector{Int64}(undef, numNz)
+
+    # Fill row and col vectors
+    idx = 1
+    r0  = 1
+    c0  = 1
+    # Loop through phases and set row and col values
+    for i in 1:length(data.phaseSet.pt)
+        # Get data 
+        nlpData = data.phaseSet.pt[i].tMan.NLPData
+        algData = data.phaseSet.pt[i].tMan.AlgebraicData
+
+        # Get sparsity pattern for nonlinear part of defect constraint BD
+        #   This seems inefficient but need a way to preserve full sparsity pattern even when some 
+        #   elements are zero now
+        Bnz     = findnz(nlpData.BMatrix)
+        Dnz     = findnz(nlpData.DMatrix) 
+        Bsp     = sparse(Bnz[1],Bnz[2],ones(length(Bnz[1])), size(nlpData.BMatrix)...)
+        Dsp     = sparse(Dnz[1],Dnz[2],ones(length(Dnz[1])), size(nlpData.DMatrix)...)
+        BD      = Bsp*Dsp
+
+        # Add BD sparsity pattern to rows and cols
+        m, n    = size(BD)
+        rs      = rowvals(BD)
+        @inbounds for j in 1:n
+            for i in nzrange(BD, j)
+                rows[idx] = r0 + rs[i] - 1
+                cols[idx] = c0 + j - 1
+                idx += 1
+            end
+        end
+        r0 += m
+
+        # Add algebraic function sparsity to rows and cols
+        m, n  = size(algData.DMatrix)
+        rs    = rowvals(algData.DMatrix)
+        @inbounds for j in 1:n
+            for i in nzrange(algData.DMatrix, j)
+                rows[idx] = r0 + rs[i] - 1
+                cols[idx] = c0 + j - 1
+            end
+        end
+        r0 += m
+        c0 += GetNumberOfDecisionVariables(data.phaseSet.pt[i])
+    end
+
+    # Get sparsity pattern for point constriants
+    algData = data.constraintPointFunctionData
+    m, n    = size(algData.DMatrix)
+    rs      = rowvals(algData.DMatrix)
+    @inbounds for j in 1:n
+        for i in nzrange(algData.DMatrix, j)
+            rows[idx] = r0 + rs[i] - 1
+            cols[idx] = j
+            idx += 1
+        end
+    end
+    return rows, cols
+end
+
 # Function to compute the full linear part of NLP Jacobian 
 function SnoptGetFullNLPLinearPartJacobian(data::TrajectoryData)
     # Get the number of nonzeros
@@ -846,7 +914,7 @@ function SnoptGetFullNLPLinearPartJacobian(data::TrajectoryData)
         vs      = nonzeros(nlpData.AMatrix)
         @inbounds for j in 1:n
             for i in nzrange(nlpData.AMatrix, j)
-                rows[idx] = r0 + rs[i] - 1
+                rows[idx] = r0 + rs[i] # - 1
                 cols[idx] = c0 + j - 1
                 vals[idx] = vs[i]
                 idx += 1
@@ -857,7 +925,8 @@ function SnoptGetFullNLPLinearPartJacobian(data::TrajectoryData)
         r0 += GetNumberOfConstraints(data.phaseSet.pt[i])
         c0 += GetNumberOfDecisionVariables(data.phaseSet.pt[i])
     end
-    return sparse(rows, cols, vals, numCons, numVars) 
+    #return sparse(rows, cols, vals, numCons, numVars) 
+    return sparse(rows, cols, vals, numCons + 1, numVars)
 end
 
 # Fucntion to compute the number of nonzeros in linear part of NLP Jacobian

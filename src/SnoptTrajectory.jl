@@ -14,18 +14,25 @@ function SnoptTrajectory(phaseSet::PhaseSet, pfSet::PointFunctionSet)
 
     # Prepare information to construct SnoptWrapper
     numNz    = SnoptGetNumberOfNonlinearJacobianNonZeros(data)
+    rs, cs   = SnoptGetNonlinearPartJacobianSparsity(data)
     A        = SnoptGetFullNLPLinearPartJacobian(data)
     xLB, xUB = GetDecisionVectorBounds(data)
     gLB, gUB = GetConstraintBounds(data)
 
     # Prepare function
-    feval!(g, df, dg, x, deriv) = SnoptEvaluate(data, g, df, dg, x, deriv)
+    feval!(g, df, dg, x, deriv) = SnoptEvaluate!(data, g, df, dg, x, deriv)
 
     # Instantiate SnoptWrapper
     solver  = SnoptWrapper(feval!, xLB, xUB, gLB, gUB, numNz, A)
 
     # Set the initial guess
     SetInitialGuess!(solver, GetDecisionVector(phaseSet)) 
+
+    # Set sparsity
+    SetSparsity!(solver, rs, cs)
+
+    # Set options for debugging
+    #SetIntOption!(solver, "Verify level", 3)
 
     SnoptTrajectory(data, solver)
 end
