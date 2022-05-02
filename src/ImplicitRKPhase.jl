@@ -423,12 +423,25 @@ function GetIntegralCostJacobian!(p::ImplicitRKPhase, grad)
     return nothing
 end
 
+# Function to get all constraints for the phase. Places constraints in g
 function GetPhaseConstraints!(p::ImplicitRKPhase, g)
     # Get defect constraints
     nDefects = GetNumberOfStates(p.pathFuncSet)*GetNumberOfDefectConstraints(p.tMan)
     GetDefectConstraints!(p.tMan, view(g, 1:nDefects), p.decisionVector.decisionVector)
 
     # Get algebraic constriants
+    g[nDefects + 1:end] .= p.tMan.AlgebraicData.qVector
+    return nothing
+end
+
+# Function to get the nonlinear part of constraints for the phase. For SNOPT,
+# which allows for prespecification on linear part of constraints. 
+function GetNonlinearPartPhaseConstraints!(p::ImplicitRKPhase, g)
+    # Get nonlinear part of defect constraints
+    nDefects = GetNumberOfStates(p.pathFuncSet)*GetNumberOfDefectConstraints(p.tMan)
+    GetNonlinearPartDefectConstraints!(p.tMan, view(g, 1:nDefects))
+
+    # Get algebraic constraints (Assumed to have no linear parts currently)
     g[nDefects + 1:end] .= p.tMan.AlgebraicData.qVector
     return nothing
 end

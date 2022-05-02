@@ -642,3 +642,9 @@ function GetDefectConstraints!(irkMan::ImplicitRKCollocationManager, g, x)
     g .+= irkMan.NLPData.BMatrix*irkMan.NLPData.qVector
     return nothing
 end
+
+# Function to get nonlinear part of defect constraints
+function GetNonlinearPartDefectConstraints!(irkMan::ImplicitRKCollocationManager, g)
+    g .= irkMan.NLPData.BMatrix*irkMan.NLPData.qVector
+    return nothing
+end

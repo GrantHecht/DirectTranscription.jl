@@ -38,8 +38,5 @@ function IpoptTrajectory(phaseSet::PhaseSet, pfSet::PointFunctionSet)
     IpoptTrajectory(data, solver)
 end
 
-function Optimize!(traj::IpoptTrajectory)
-    # Run optimization
-    Optimize!(traj.solver)
-end
+
 

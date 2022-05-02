@@ -440,6 +440,119 @@ end
 
 # ===== Functions for evaluation
 
+# Evaluate functions for SNOPT
+function SnoptEvaluate!(data::TrajectoryData, g, df, dg, x, deriv)
+    # Set decision vector
+    SetDecisionVector!(data, x)
+
+    # Evaluate functions
+    EvaluateFunctions!(data)
+
+    # ===== Compute the objective function
+    f   = sum(data.costPointFunctionData.qVector)
+    f   += GetPhaseIntegralCosts(data)
+
+    # ===== Compute constraints g
+    @inbounds for i in 1:length(g); g[i] = 0.0; end
+    c0 = 1
+    @inbounds for i in 1:length(data.phaseSet.pt)
+        # Get number of constraints in current phase
+        numCons     = GetNumberOfConstraints(data.phaseSet.pt[i])
+        cf          = c0 + numCons - 1
+
+        # Get nonlinear part of constraints
+        GetNonlinearPartPhaseConstraints!(data.phaseSet.pt[i], view(g, c0:cf))
+        c0          = cf + 1
+    end
+
+    # Fill g with algebraic point constraints (All assumed to have no linear parts currently)
+    nAlgCons = length(data.constraintPointFunctionData.qVector)
+    @inbounds for i in 1:nAlgCons
+        g[c0 + i - 1] = data.constraintPointFunctionData.qVector[i]
+    end
+
+    # If derivatives are desired, compute
+    if deriv 
+        # Set value vectors to zero
+        @inbounds for i in 1:length(df); df[i] = 0.0; end
+        @inbounds for i in 1:length(dg); dg[i] = 0.0; end
+
+        # Evaluate Jacobians
+        EvaluateJacobians!(data)
+
+        # ===== Compute gradient of cost function 
+        # Fill gradient with point function gradient
+        vals = nonzeros(data.costPointFunctionData.DMatrix)
+        m, n = size(data.costPointFunctionData.DMatrix)
+        @inbounds for j in 1:n
+            for i in nzrange(data.costPointFunctionData.DMatrix, j)
+                df[j] = vals[i]
+            end
+        end
+
+        # Fill gradient with integral cost gradient
+        c0 = 1
+        @inbounds for i in 1:length(data.phaseSet.pt)
+            # Get number of decision variables in phase
+            nDecVars    = GetNumberOfDecisionVariables(data.phaseSet.pt[i])
+            cf          = c0 + nDecVars - 1
+
+            # Get the integral cost gradient
+            GetIntegralCostJacobian!(data.phaseSet.pt[i], view(df, c0:cf))
+            c0          = cf + 1
+        end
+
+        # ===== Compute the nonlinear part of the jacobian of the constraints
+        for i in 1:length(data.phaseSet.pt)
+            # Get data
+            nlpData = data.phaseSet.pt[i].tMan.NLPData 
+            algData = data.phaseSet.pt[i].tMan.AlgebraicData
+
+            # Get sparsity pattern for nonlinear part of defect constraints BD 
+            Bnz     = findnz(nlpData.BMatrix)
+            Dnz     = findnz(nlpData.DMatrix) 
+            Bsp     = sparse(Bnz[1],Bnz[2],ones(length(Bnz[1])), size(nlpData.BMatrix)...)
+            Dsp     = sparse(Dnz[1],Dnz[2],ones(length(Dnz[1])), size(nlpData.DMatrix)...)
+            BDsp    = Bsp*Dsp
+            BD      = nlpData.BMatrix*nlpData.DMatrix
+
+            # Add BD to values vector
+            m, n    = size(BDsp)
+            rs      = rowvals(BDsp)
+            @inbounds for j in 1:n
+                for i in nzrange(BDsp, j)
+                    dg[idx] = BD[rs[i],j]
+                    idx += 1
+                end
+            end
+
+            # Add algebraic function to values vector
+            m, n    = size(algData.DMatrix)
+            rs      = rowvals(algData.DMatrix)
+            vs      = nonzeros(algData.DMatrix) 
+            @inbounds for j in 1:n
+                for i in nzrange(algData.DMatrix, j)
+                    dg[idx] = vs[i]
+                    idx += 1
+                end
+            end
+        end
+
+        # Get values for point constraints
+        algData = data.constraintPointFunctionData
+        m, n    = size(algData.DMatrix)
+        rs      = rowvals(algData.DMatrix)
+        vs      = nonzeros(algData.DMatrix)
+        @inbounds for j in 1:n
+            for i in nzrange(algData.DMatrix, j)
+                dg[idx] = vs[i]
+                idx += 1
+            end
+        end
+    end
+    return f, false
+end
+
 # Evaluate the objective function for IPOPT
 function IpoptEvaluateF(data::TrajectoryData, x)
     # Set the decision vector
@@ -671,6 +784,93 @@ function IpoptGetNumberOfJacobianNonZeros(data::TrajectoryData)
     # Get sparsity pattern for point constriants
     algData = data.constraintPointFunctionData
     numNz  += nnz(algData.DMatrix)
+    return numNz
+end
+
+# Function to compute the number of Snopt nonlinear part of Jacobian nonzeros
+function SnoptGetNumberOfNonlinearJacobianNonZeros(data::TrajectoryData)
+    numNz = 0
+    # Loop through phases and grab the number of nonzeros
+    for i in 1:length(data.phaseSet.pt)
+        # Get data 
+        nlpData = data.phaseSet.pt[i].tMan.NLPData
+        algData = data.phaseSet.pt[i].tMan.AlgebraicData
+
+        # Get sparsity pattern for nonlinear part of defect constraint BD
+        #   This seems inefficient but need a way to preserve full sparsity pattern even when some 
+        #   elements are zero now
+        Bnz     = findnz(nlpData.BMatrix)
+        Dnz     = findnz(nlpData.DMatrix) 
+        Bsp     = sparse(Bnz[1],Bnz[2],ones(length(Bnz[1])), size(nlpData.BMatrix)...)
+        Dsp     = sparse(Dnz[1],Dnz[2],ones(length(Dnz[1])), size(nlpData.DMatrix)...)
+        BD      = Bsp*Dsp
+
+        # Add ApBD number of nonzeros
+        numNz += nnz(BD)
+
+        # Add algebraic function sparsity to rows and cols
+        numNz += nnz(algData.DMatrix)
+    end
+
+    # Get sparsity pattern for point constriants
+    algData = data.constraintPointFunctionData
+    numNz  += nnz(algData.DMatrix)
+    return numNz
+end
+
+# Function to compute the full linear part of NLP Jacobian 
+function SnoptGetFullNLPLinearPartJacobian(data::TrajectoryData)
+    # Get the number of nonzeros
+    numNz   = GetNumberOfLinearNonZeros(data::TrajectoryData)
+
+    # Get number of constraints and decision variables
+    numCons = GetNumberOfConstraints(data)
+    numVars = GetNumberOfDecisionVariables(data.phaseSet)
+
+    # Allocate row, col, and val vectors
+    rows    = zeros(numNz)
+    cols    = zeros(numNz)
+    vals    = zeros(numNz)
+
+    # Loop through each phase and add nonzeros
+    idx     = 1
+    r0      = 1
+    c0      = 1
+    for i in 1:length(data.phaseSet.pt)
+        # Get the data
+        nlpData = data.phaseSet.pt[i].tMan.NLPData
+
+        # Loop through AMatrix
+        m, n    = size(nlpData.AMatrix)
+        rs      = rowvals(nlpData.AMatrix)
+        vs      = nonzeros(nlpData.AMatrix)
+        @inbounds for j in 1:n
+            for i in nzrange(nlpData.AMatrix, j)
+                rows[idx] = r0 + rs[i] - 1
+                cols[idx] = c0 + j - 1
+                vals[idx] = vs[i]
+                idx += 1
+            end
+        end
+
+        # Shift r0 and c0
+        r0 += GetNumberOfConstraints(data.phaseSet.pt[i])
+        c0 += GetNumberOfDecisionVariables(data.phaseSet.pt[i])
+    end
+    return sparse(rows, cols, vals, numCons, numVars) 
+end
+
+# Fucntion to compute the number of nonzeros in linear part of NLP Jacobian
+function GetNumberOfLinearNonZeros(data::TrajectoryData)
+    numNz = 0
+    # Loop through phase and get the numbers of nonzeros 
+    for i in 1:length(data.phaseSet.pt)
+        # Get the data
+        nlpData = data.phaseSet.pt[i].tMan.NLPData
+
+        # Get the number of nonzeros in A
+        numNz += nnz(nlpData.AMatrix)
+    end
     return numNz
 end
 
