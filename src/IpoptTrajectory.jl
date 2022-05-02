@@ -32,6 +32,9 @@ function IpoptTrajectory(phaseSet::PhaseSet, pfSet::PointFunctionSet)
     # Set solver initial guess
     SetInitialGuess!(solver, GetDecisionVector(phaseSet))
 
+    # Set options (For debugging only)
+    #SetStringOption!(solver, "derivative_test", "first-order")
+
     IpoptTrajectory(data, solver)
 end
 

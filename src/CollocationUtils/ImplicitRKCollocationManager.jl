@@ -358,7 +358,7 @@ function InitializeDMatrix!(irkMan::ImplicitRKCollocationManager, pfs::PathFunct
     nTimeNz     = nnz(timeSP)
 
     # Compute the number of nonzeros in D 
-    nz          = discPoints*(nStateNz + nControlNz + nStaticNz + 2*nTimeNz)
+    nz          = discPoints*(nStateNz + nControlNz + nStaticNz + 2*numStates)
 
     # Loop and fill rows, cols, and vals
     rows        = Vector{Int}(undef, nz)
@@ -411,15 +411,16 @@ function InitializeDMatrix!(irkMan::ImplicitRKCollocationManager, pfs::PathFunct
         # Compute row and column offset
         r0      = (point - 1)*numStates
         c0      = discPoints*(numStates + numControls) + numStatic
-        r, c, v = findnz(timeSP)
-        for i in 1:nStaticNz
+        #r, c, v = findnz(timeSP)
+        #for i in 1:nTimeNz
+        for i in 1:numStates
             for c_offset in 0:1
                 # Increment index counter
                 idx += 1
 
                 # Add values to row, col, and val vectors
-                rows[idx] = r0 + r[i]
-                cols[idx] = c0 + c_offset + c[i]
+                rows[idx] = r0 + i #r[i]
+                cols[idx] = c0 + c_offset + 1 #c[i]
             end
         end
     end
@@ -497,7 +498,7 @@ function InitializeDMatrix!(irkMan::ImplicitRKCollocationManager, pfs::PathFunct
             r0      = (point - 1)*numAlgFuncs
             c0      = discPoints*(numStates + numControls) + numStatic
             r, c, v = findnz(timeSP)
-            for i in 1:nStaticNz
+            for i in 1:nTimeNz
                 for c_offset in 0:1
                     # Increment index counter
                     idx += 1
@@ -534,7 +535,7 @@ function InitializeDMatrix!(irkMan::ImplicitRKCollocationManager, pfs::PathFunct
         nTimeNz     = nnz(timeSP)
 
         # Compute the number of nonzeros in D 
-        nz          = discPoints*(nStateNz + nControlNz + nStaticNz + 2*nTimeNz)
+        nz          = discPoints*(nStateNz + nControlNz + nStaticNz + 2)
 
         # Loop and fill rows, cols, and vals
         rows        = Vector{Int}(undef, nz)
@@ -587,17 +588,17 @@ function InitializeDMatrix!(irkMan::ImplicitRKCollocationManager, pfs::PathFunct
             # Compute row and column offset
             r0      = point - 1
             c0      = discPoints*(numStates + numControls) + numStatic
-            r, c, v = findnz(timeSP)
-            for i in 1:nStaticNz
+            #r, c, v = findnz(timeSP)
+            #for i in 1:nTimeNz
                 for c_offset in 0:1
                     # Increment index counter
                     idx += 1
 
                     # Add values to row, col, and val vectors
-                    rows[idx] = r0 + r[i]
-                    cols[idx] = c0 + c_offset + c[i]
+                    rows[idx] = r0 + 1 #r[i]
+                    cols[idx] = c0 + c_offset + 1 #c[i]
                 end
-            end
+            #end
         end
 
         # Fill Jacobian sparsity for quadrature data

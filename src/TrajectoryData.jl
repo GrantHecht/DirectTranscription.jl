@@ -404,14 +404,14 @@ function EvaluatePointJacobians!(td::TrajectoryData)
 
         # Set Jacobian Values
         for i in 1:length(stateIndecies)
-            if length(stateIndecies[i]) < 1
+            if length(stateIndecies[i]) > 0
                 stateIdxf   = stateIdx0 + length(stateIndecies[i]) - 1
                 dView       = GetDMatrixView(fd, idx0:idxf, stateIndecies[i])
                 dView       .= view(stateJac, :, stateIdx0:stateIdxf)
                 stateIdx0   = stateIdxf + 1
             end
 
-            if length(controlIndecies[i]) < 1
+            if length(controlIndecies[i]) > 0
                 controlIdxf = controlIdx0 + length(controlIndecies[i]) - 1
                 dView       = GetDMatrixView(fd, idx0:idxf, controlIndecies[i])
                 dView       .= view(controlJac, :, controlIdx0:controlIdxf)
@@ -422,7 +422,7 @@ function EvaluatePointJacobians!(td::TrajectoryData)
             dView       .= view(timeJac, :, timeIdx)
             timeIdx     += 1
 
-            if i <= length(staticIndecies) && length(staticIndecies[i]) < 1
+            if i <= length(staticIndecies) && length(staticIndecies[i]) > 0
                 staticIdxf  = staticIdx0 + length(staticIndecies[i]) - 1
                 dView       = GetDMatrixView(fd, idx0:idxf, staticIndecies[i])
                 dView       .= view(staticJac, :, staticIdx0:staticIdxf)
@@ -484,6 +484,9 @@ end
 
 # Function to evaluate gradient of the objective function
 function IpoptEvaluateGradF!(data::TrajectoryData, gradF, x)
+    # Set the gradient vector to zero
+    @inbounds for i in 1:length(gradF); gradF[i] = 0.0; end
+
     # Set the decision vector
     SetDecisionVector!(data, x)
 
@@ -574,6 +577,9 @@ function IpoptEvaluateJacG!(data::TrajectoryData, values, rows, cols, x)
             end
         end
     else
+        # Set values to zero
+        @inbounds for i in 1:length(values); values[i] = 0.0; end
+
         idx = 1
         r0  = 1
         c0  = 1

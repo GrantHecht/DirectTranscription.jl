@@ -15,3 +15,18 @@ function PathFunction(type::FunctionType, func!::Function, stateJac!::Union{Func
     return AnalyticPathFunction(type, func!, stateJac!, controlJac!, staticJac!, timeJac!,
         nFuncs, nStates, nControls, nStatic, stateSP, controlSP, staticSP, timeSP)
 end
+
+# Method to evaluate all jacobians
+function EvaluateJacobians!(fp::PathFunction,
+    state::AbstractVector,
+    control::AbstractVector,
+    static::AbstractVector,
+    time::Union{AbstractFloat,AbstractVector})
+
+    # Evaluate all jacobians
+    EvaluateJacobian(State(), fp, fp.stateJac, state, control, static, time)
+    EvaluateJacobian(Control(), fp, fp.controlJac, state, control, static, time)
+    EvaluateJacobian(Static(), fp, fp.staticJac, state, control, static, time)
+    EvaluateJacobian(Time(), fp, fp.timeJac, state, control, static, time)
+    return nothing
+end

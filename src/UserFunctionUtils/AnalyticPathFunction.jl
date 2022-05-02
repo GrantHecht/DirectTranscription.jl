@@ -24,6 +24,12 @@ struct AnalyticPathFunction{type, PFT<:Function, SJT, CJT, STJT, TJT} <: PathFun
     # Name of user defined functions
     funcNames::Vector{String}
 
+    # Allocated jacobian matricies
+    stateJac::Matrix{Float64}
+    controlJac::Matrix{Float64}
+    staticJac::Matrix{Float64}
+    timeJac::Matrix{Float64}
+
     # Jacobian sparsity patterns
     stateSP::SparseMatrixCSC{Bool, Int}
     controlSP::SparseMatrixCSC{Bool, Int}
@@ -36,14 +42,20 @@ function AnalyticPathFunction(type::FunctionType, func!::Function, stateJac!::Un
     nFuncs::Int, nStates::Int, nControls::Int, nStatic::Int, stateSP::AbstractVecOrMat, controlSP::AbstractVecOrMat, 
     staticSP::AbstractVecOrMat, timeSP::AbstractVecOrMat)
 
+    # Allocate jacobian matricies
+    stateJac    = zeros(nFuncs, nStates)
+    controlJac  = zeros(nFuncs, nControls)
+    staticJac   = zeros(nFuncs, nStatic)
+    timeJac     = zeros(nFuncs, 1)
+
     PFT     = typeof(func!)
     SJT     = typeof(stateJac!)
     CJT     = typeof(controlJac!)
     STJT    = typeof(staticJac!)
     TJT     = typeof(timeJac!)
     AnalyticPathFunction{typeof(type),PFT,SJT,CJT,STJT,TJT}(func!,stateJac!,controlJac!,staticJac!,timeJac!, 
-        nFuncs,nStates,nControls,nStatic,Vector{String}(undef, 0), GetMatrixSparsity(stateSP),
-        GetMatrixSparsity(controlSP),GetMatrixSparsity(staticSP),GetMatrixSparsity(timeSP))
+        nFuncs,nStates,nControls,nStatic,Vector{String}(undef, 0), stateJac, controlJac, staticJac, timeJac, 
+        GetMatrixSparsity(stateSP), GetMatrixSparsity(controlSP),GetMatrixSparsity(staticSP),GetMatrixSparsity(timeSP))
 end
 
 # Posibly add another function which employs some form of sparsity detection. Could also check user

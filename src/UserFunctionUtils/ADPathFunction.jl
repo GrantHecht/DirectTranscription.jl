@@ -18,6 +18,12 @@ struct ADPathFunction{type, PFT<:Function, SJC, CJC, STJC, TJC} <: PathFunction{
     # Allocated output vector 
     fOut::Vector{Float64}
 
+    # Allocated jacobian matricies
+    stateJac::Matrix{Float64}
+    controlJac::Matrix{Float64}
+    staticJac::Matrix{Float64}
+    timeJac::Matrix{Float64}
+
     # Jacobian sparsity patterns
     stateSP::SparseMatrixCSC{Bool, Int}
     controlSP::SparseMatrixCSC{Bool, Int}
@@ -69,13 +75,20 @@ function ADPathFunction(type::FunctionType, func!::Function, nFuncs::Int, nState
     timeJC = ForwardDiff.JacobianConfig((y,t)->func!(y,states,controls,static,t[1]),
         out, [0.0], ForwardDiff.Chunk{1}())
 
+    # Allocate jacobian matricies
+    stateJac    = zeros(nFuncs, nStates)
+    controlJac  = zeros(nFuncs, nControls)
+    staticJac   = zeros(nFuncs, nStatic)
+    timeJac     = zeros(nFuncs, 1)
+
     PFT     = typeof(func!)
     SJC     = typeof(stateJC)
     CJC     = typeof(controlJC)
     STJC    = typeof(staticJC)
     TJC     = typeof(timeJC)
     ADPathFunction{typeof(type),PFT,SJC,CJC,STJC,TJC}(func!,nFuncs,nStates,nControls,nStatic,
-        Vector{String}(undef, 0),out,stateSP,controlSP,staticSP,timeSP,stateJC,controlJC,staticJC,timeJC)
+        Vector{String}(undef, 0),out,stateJac,controlJac,staticJac,timeJac,stateSP,controlSP,
+        staticSP,timeSP,stateJC,controlJC,staticJC,timeJC)
 end
 
 # Evaluate jacobian functions

@@ -5,8 +5,8 @@ function BrachistichronePathFunction!(out, xVec, uVec, pVec, t)
     # Extract parameter data
     u   = uVec[1]
     y   = xVec[3] * sin(u)
-    y2  = y * cos(u)
-    y3  = -32.174 * cos(u)
+    y2  = -xVec[3] * cos(u)
+    y3  = 9.81 * cos(u)
 
     out[1] = y 
     out[2] = y2 
@@ -38,8 +38,8 @@ costFunc    = PointFunction(Cost(), BrachistichroneCostFunction!, 1,
                 [1], [true], [3], [1], [0])
                 
 # Set algebraic function upper and lower bounds         
-SetAlgebraicFunctionLowerBounds!(pointFunc, [0.0,   0.0, 0.0, 0.0, 0.0, 1.0, -10.0, -10.0])
-SetAlgebraicFunctionUpperBounds!(pointFunc, [0.0, 100.0, 0.0, 0.0, 0.0, 1.0,  10.0,   0.0])
+SetAlgebraicFunctionLowerBounds!(pointFunc, [0.0,   0.1, 0.0, 0.0, 0.0, 10.0,  -3.0, -50.0])
+SetAlgebraicFunctionUpperBounds!(pointFunc, [0.0, 100.0, 0.0, 0.0, 0.0, 10.0,  -3.0,  50.0])
 
 # Create set of path functions for phase 
 pathFuncSet     = PathFunctionSet(pathFunc)
@@ -48,27 +48,31 @@ pathFuncSet     = PathFunctionSet(pathFunc)
 pointFuncSet    = PointFunctionSet(pointFunc, costFunc)
 
 # Mesh properties
-meshIntervalFractions = [0.0, 0.25, 0.5, 0.75, 1.0]
-meshIntervalNumPoints = [2,2,2,2]
+meshIntervalFractions   = zeros(21)
+for i in 2:length(meshIntervalFractions) - 1
+    meshIntervalFractions[i] = meshIntervalFractions[i - 1] + 1.0 / length(meshIntervalFractions)
+end
+meshIntervalFractions[end]  = 1.0
+meshIntervalNumPoints       = [2]
 
 # Instaitiate phase
 phase = Phase(ImplicitRK(), pathFuncSet, meshIntervalFractions, meshIntervalNumPoints)
 
 # Set time properties
-timeLowerBound      = [0.0, 0.0]
+timeLowerBound      = [0.0, 0.1]
 timeUpperBound      = [0.0, 100.0]
 initialGuessTime    = 0.0
-finalGuessTime      = 0.3 
+finalGuessTime      = 10.0 
 
 # Set state properties
-stateLowerBound     = [-10.0, -10.0, -10.0]
-stateUpperBound     = [10.0, 10.0, 10.0]
+stateLowerBound     = [-10.0, -20.0, -10.0]
+stateUpperBound     = [20.0,   10.0,  50.0]
 initialGuessState   = [0.0, 0.0, 0.0]
-finalGuessState     = [2.0, -1.0, -1.0]
+finalGuessState     = [10.0, -3.0, 2.0]
 
 # Set control properties 
-controlLowerBound   = [-10.0]
-controlUpperBound   = [10.0]
+controlLowerBound   = [0.0]
+controlUpperBound   = [π]
 
 # Set bounds and initial guess information
 SetStateBounds!(phase, stateUpperBound, stateLowerBound)
@@ -87,7 +91,7 @@ DirectTranscription.EvaluateJacobians!(trajData)
 #DirectTranscription.EvaluateFunctions!(phase)
 #DirectTranscription.EvaluateJacobians!(phase)
 x       = trajData.phaseSet.pt[1].decisionVector.decisionVector
-x       = rand(length(x))
+#x       = rand(length(x))
 nCons   = DirectTranscription.GetNumberOfConstraints(trajData)
 g       = zeros(nCons)
 gradF   = zeros(length(x))

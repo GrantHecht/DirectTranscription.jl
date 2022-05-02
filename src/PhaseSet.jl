@@ -99,7 +99,7 @@ function GetStateVector!(sv::AbstractVector, ps::PhaseSet, phaseNums::Vector{Int
     for i in 1:length(phaseNums)
         idxf = idx0 + GetNumberOfStates(ps.pt[phaseNums[i]].decisionVector) - 1
         GetStateVector!(view(sv, idx0:idxf), ps, phaseNums[i], timeFlags[i])
-        idx0 += 1
+        idx0 = idxf + 1
     end
     return nothing
 end
