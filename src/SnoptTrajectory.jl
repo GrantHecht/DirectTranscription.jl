@@ -33,6 +33,7 @@ function SnoptTrajectory(phaseSet::PhaseSet, pfSet::PointFunctionSet)
 
     # Set options for debugging
     #SetIntOption!(solver, "Verify level", 3)
+    #SetIntOption!(solver, "Scale option", 2)
 
     SnoptTrajectory(data, solver)
 end

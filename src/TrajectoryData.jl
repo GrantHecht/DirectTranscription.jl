@@ -866,6 +866,7 @@ function SnoptGetNonlinearPartJacobianSparsity(data::TrajectoryData)
             for i in nzrange(algData.DMatrix, j)
                 rows[idx] = r0 + rs[i] - 1
                 cols[idx] = c0 + j - 1
+                idx += 1
             end
         end
         r0 += m

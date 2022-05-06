@@ -1,4 +1,7 @@
+using Pkg
+Pkg.activate()
 using DirectTranscription
+using Plots
 
 # Define optimal control problem functions
 function BrachistichronePathFunction!(out, xVec, uVec, pVec, t)
@@ -48,8 +51,7 @@ pathFuncSet     = PathFunctionSet(pathFunc)
 pointFuncSet    = PointFunctionSet(pointFunc, costFunc)
 
 # Mesh properties
-#meshIntervalFractions   = zeros(21)
-meshIntervalFractions = zeros(21)
+meshIntervalFractions = zeros(31)
 for i in 2:length(meshIntervalFractions) - 1
     meshIntervalFractions[i] = meshIntervalFractions[i - 1] + 1.0 / length(meshIntervalFractions)
 end
@@ -109,3 +111,6 @@ DirectTranscription.IpoptEvaluateJacG!(trajData, vals, rows, cols, x)
 
 traj    = Trajectory(phase, pointFuncSet)
 DirectTranscription.Optimize!(traj)
+sol = GetSolution(traj)
+
+plot(sol[1:4:end - 5], sol[2:4:end - 4])

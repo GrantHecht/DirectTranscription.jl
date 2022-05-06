@@ -73,7 +73,7 @@ function EvaluateFunctions!(p::ImplicitRKPhase)
         if HasAlgebraicFunctions(p.pathFuncSet) == true 
             # Get view of q vector for function output
             nAlgFuncs   = GetNumberOfAlgebraicFunctions(p.pathFuncSet)
-            idx0        = (point - 1)*nStates + 1
+            idx0        = (point - 1)*nAlgFuncs + 1
             idx1        = idx0 + nAlgFuncs - 1
             qView       = GetQVectorView(p.tMan.AlgebraicData, idx0:idx1)
 

@@ -55,8 +55,9 @@ include("IpoptTrajectory.jl")
 export Phase, Trajectory, SetStateBounds!, SetControlBounds!, 
     SetStaticBounds!, SetTimeBounds!, SetTimeGuess!, SetStaticGuess!, 
     SetLinearStateConstantControlGuess!, SetLinearStateNoControlGuess!,
-    SetLinearStateUnityControlGuess!, SetAlgebraicFunctionLowerBounds!,
-    SetAlgebraicFunctionUpperBounds!
+    SetLinearStateUnityControlGuess!, SetStateAndControlGuess!, 
+    SetAlgebraicFunctionLowerBounds!, SetAlgebraicFunctionUpperBounds!, 
+    GetSolution, Optimize!
 
 # Conditionally use Snopt 
 function __init__()

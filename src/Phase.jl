@@ -123,3 +123,22 @@ SetLinearStateNoControlGuess!(p::Phase, xi, xf) =
 # Set state guess by linear interpolation from xi to xf and set control to one
 SetLinearStateUnityControlGuess!(p::Phase, xi, xf) = 
     SetLinearStateConstantControlGuess!(p, xi, xf, ones(GetNumberOfControls(p.pathFuncSet))) 
+
+# Set state and control guess with user function
+function SetStateAndControlGuess!(p::Phase, f::Function, ti, tf)
+    # Get discretization points
+    discretizationPoints = GetDiscretizationPoints(p.tMan)
+
+    # Loop through discretization points and set state and control
+    for i in 1:length(discretizationPoints)
+        # Get state and control from user supplied function
+        x, u = f(ti + (tf - ti)*discretizationPoints[i])
+
+        # Set state and control
+        SetStateAtDiscretizationPoint!(p.decisionVector, x, i)
+        SetControlAtDiscretizationPoint!(p.decisionVector, u, i)
+    end
+
+    # Set state and control guess set flags in decision vector
+    SetStateAndControlGuessSet!(p.decisionVector)
+end

@@ -51,16 +51,58 @@ end
 
 # Function to set upper and lower bounds
 function SetFunctionLowerBounds!(fd::AlgebraicFunctionData, lb::AbstractVector)
-    n       = length(lb)
-    fd.LB   = Vector{Float64}(undef, n)
-    fd.LB  .= lb 
+    if fd.qVectorSet == false
+        error("Cannot set function lower bounds before initializing qVector.")
+    end
+    if length(lb) != 0
+        if length(fd.qVector)  % length(lb) != 0
+            error("Lower bound vector is the incorrect length.")
+        end
+
+        # Set LB
+        n       = length(fd.qVector)
+        fd.LB   = Vector{Float64}(undef, n)
+        j       = 1
+        for i in 1:length(fd.qVector)
+            fd.LB[i] = lb[j]
+            j += 1
+            if j > length(lb)
+                j = 1
+            end
+        end
+    else
+        if length(fd.qVector) != 0
+            error("Must set lower bound vector!")
+        end
+    end
     fd.LBVectorSet = true 
     CheckIfInitialized!(fd)
 end
 function SetFunctionUpperBounds!(fd::AlgebraicFunctionData, ub::AbstractVector)
-    n       = length(ub)
-    fd.UB   = Vector{Float64}(undef, n)
-    fd.UB  .= ub 
+    if fd.qVectorSet == false
+        error("Cannot set function lower bounds before initializing qVector.")
+    end
+    if length(ub) != 0
+        if length(fd.qVector)  % length(ub) != 0
+            error("Upper bound vector is the incorrect length.")
+        end
+
+        # Set UB
+        n       = length(fd.qVector)
+        fd.UB   = Vector{Float64}(undef, n)
+        j       = 1
+        for i in 1:length(fd.qVector)
+            fd.UB[i] = ub[j]
+            j += 1
+            if j > length(ub)
+                j = 1
+            end
+        end
+    else
+        if length(fd.qVector) != 0
+            error("Must set upper bound vector!")
+        end
+    end
     fd.UBVectorSet = true 
     CheckIfInitialized!(fd)
 end
