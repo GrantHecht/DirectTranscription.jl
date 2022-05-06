@@ -287,9 +287,9 @@ function InitializeBMatrix!(irkMan::ImplicitRKCollocationManager, numStates::Int
                     rows[idx]   = r
                     cols[idx]   = c
                     if defect == 1
-                        vals[idx]   = Δτ*betaVec[stage]
+                        vals[idx]   = -Δτ*betaVec[stage]
                     else
-                        vals[idx]   = Δτ*alphaMat[defect - 1, stage]
+                        vals[idx]   = -Δτ*alphaMat[defect - 1, stage]
                     end
                 end
             end
@@ -326,7 +326,7 @@ function InitializeBMatrix!(irkMan::ImplicitRKCollocationManager, numStates::Int
                 # Set row, col, and value
                 rowsq[idx] = 1    
                 colsq[idx] = c 
-                valsq[idx] = Δτ*betaVec[stage] 
+                valsq[idx] = -Δτ*betaVec[stage] 
             end
         end
 

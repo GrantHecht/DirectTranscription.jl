@@ -14,10 +14,16 @@ TU      = 3.75162997e5;
 LU      = 3.844e5;
 MU      = 2000.0;
 
-# Define optimal control problem functions
+# Boundary conditions
+xi = [1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.0108419128331154755, 1.0]
+xf = [0.8484736688482315, 0.00506488863463682, 0.17343680487577373, 0.005241131023638693, 0.26343491250951045, -0.008541420325316247, 1.0] 
+
+# ===== Define optimal control problem functions
+
+# CR3BP dynamics with control
 function CR3BPDynamics!(out, xVec, uVec, pVec, t)
     # Constant parameters
-    μ       = 1.21506038e-2         
+    μ       = 0.012150603793221306
     TU      = 3.75162997e5;
     LU      = 3.844e5;
     MU      = 2000.0;
@@ -49,14 +55,15 @@ function CR3BPDynamics!(out, xVec, uVec, pVec, t)
     out[1]  = dx
     out[2]  = dy
     out[3]  = dz
-    out[4]  = x - (1 - μ)*(x + μ)*r113 - μ*(x + μ - 1)*r213 + 2*dy + u*Tmax*ax/m
-    out[5]  = y - (1 - μ)*y*r113 - μ*y*r213 - 2*dx + u*Tmax*ay/m
-    out[6]  = -(1 - μ)*z/r113 - μ*z*r213 + u*Tmax*az/m
+    out[4]  = x - (1.0 - μ)*(x + μ)*r113 - μ*(x + μ - 1.0)*r213 + 2.0*dy + u*Tmax*ax/m
+    out[5]  = y - (1.0 - μ)*y*r113 - μ*y*r213 - 2.0*dx + u*Tmax*ay/m
+    out[6]  = -(1.0 - μ)*z*r113 - μ*z*r213 + u*Tmax*az/m
     out[7]  = -u*Tmax/c
     return nothing
 end
 
-function InitialGuessGenerator(t)
+# Function for generating initial guess
+function InitialGuessGenerator(t, xi, uc)
     # CR3BP Constants
     μ       = 1.21506038e-2         
     TU      = 3.75162997e5;
@@ -65,25 +72,28 @@ function InitialGuessGenerator(t)
 
     # Time Span and Initial Condition
     ts = (0.0, t)
-    xi = [1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 
-            0.008477705130550553, -0.20786307954141953, -0.010841912833115475, 1.0]
-
-    # Constant control
-    uc = [-1.0, 0.0, 0.0, 0.5]
 
     # Perform integration
-    prob = ODEProblem((du,u,p,t)->CR3BPDynamics!(du,u,p,0.0,t), xi, ts, uc)
+    if length(uc) == 4
+        prob = ODEProblem((du,u,p,t)->CR3BPDynamics!(du,u,p,0.0,t), xi, ts, uc)
+        ucr  = uc
+    else
+        prob = ODEProblem((du,u,p,t)->CR3BPDynamicsNoControl!(du,u,p,0.0,t), xi, ts)
+        ucr  = Vector{Float64}(undef, 0)
+    end
     sol  = solve(prob)
-    return sol.u[end], uc
+    return sol.u[end], ucr
 end
 
-function PathConstraints!(out, xVec, uVec, pVec, t)
+# Path constraints to enforce thrust direction unit vector and thrust throttling magnitude
+function ControlPathConstraints!(out, xVec, uVec, pVec, t)
     out[1] = sqrt(uVec[1]^2 + uVec[2]^2 + uVec[3]^2)
     out[2] = uVec[4]
     return nothing
 end
 
-function PointConstraints!(out, xVec, uVec, pVec, t)
+# Point constraints to enforce boundary conditions
+function Phase1PointConstraints!(out, xVec, uVec, pVec, t)
     out[1] = t[1]
     out[2] = t[2]
     out[3] = xVec[1]
@@ -102,26 +112,27 @@ function PointConstraints!(out, xVec, uVec, pVec, t)
     return nothing
 end
 
+# Minimum-fuel (or minimum time) cost function
 function CostFunction!(out, xVec, uVec, pVec, t)
     out[1] = -xVec[7]
     #out[1] = t[1]
     return nothing
 end
 
-# Create path function
+# Create path functions
 dynFunc    = PathFunction(Dynamics(), CR3BPDynamics!, 7, 7, 4, 0);
-algFunc    = PathFunction(Algebraic(), PathConstraints!, 2, 7, 4, 0);
+algFunc    = PathFunction(Algebraic(), ControlPathConstraints!, 2, 7, 4, 0);
 
 # Create point functions
-pointFunc   = PointFunction(Algebraic(), PointConstraints!, 15, 
+pointFunc   = PointFunction(Algebraic(), Phase1PointConstraints!, 15, 
                 [1, 1], [false, true], [7, 7], [4, 4], [0, 0])
 costFunc    = PointFunction(Cost(), CostFunction!, 1,
                 [1], [true], [7], [4], [0])
                 
 # Set algebraic function upper and lower bounds         
-pointFuncLB = [0.0, 4.0*24*3600/TU, 1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.010841912833115475, 1.0,
+pointFuncLB = [0.0, 4.0*24*3600/TU, 1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.0108419128331154755, 1.0,
                 0.8484736688482315, 0.00506488863463682, 0.17343680487577373, 0.005241131023638693, 0.26343491250951045, -0.008541420325316247]
-pointFuncUB = [0.0, 15.0*24*3600/TU, 1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.010841912833115475, 1.0,
+pointFuncUB = [0.0, 20.0*24*3600/TU, 1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.0108419128331154755, 1.0,
                 0.8484736688482315, 0.00506488863463682, 0.17343680487577373, 0.005241131023638693, 0.26343491250951045, -0.008541420325316247]
 SetAlgebraicFunctionLowerBounds!(pointFunc, pointFuncLB)
 SetAlgebraicFunctionUpperBounds!(pointFunc, pointFuncUB)
@@ -133,7 +144,7 @@ pathFuncSet     = PathFunctionSet(dynFunc, algFunc)
 pointFuncSet    = PointFunctionSet(pointFunc, costFunc)
 
 # Mesh properties
-meshIntervalFractions = zeros(51)
+meshIntervalFractions = zeros(101)
 for i in 2:length(meshIntervalFractions) - 1
     meshIntervalFractions[i] = meshIntervalFractions[i - 1] + 1.0 / length(meshIntervalFractions)
 end
@@ -152,8 +163,8 @@ finalGuessTime      = 12.7*24*3600/TU
 # Set state properties
 stateLowerBound     = [-5.0, -5.0, -5.0, -20, -20, -20, 0.01]
 stateUpperBound     = [5.0, 5.0, 5.0, 20.0, 20.0, 20.0, 1.5]
-initialGuessState   = [1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.010841912833115475, 1.0]
-finalGuessState     = [0.8484736688482315, 0.00506488863463682, 0.17343680487577373, 0.005241131023638693, 0.26343491250951045, -0.008541420325316247, 0.8]
+#initialGuessState   = [1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.010841912833115475, 1.0]
+#finalGuessState     = [0.8484736688482315, 0.00506488863463682, 0.17343680487577373, 0.005241131023638693, 0.26343491250951045, -0.008541420325316247, 0.8]
 
 # Set control properties 
 controlLowerBound   = [-2.0, -2.0, -2.0, 0.0]
@@ -169,7 +180,7 @@ SetControlBounds!(phase, controlUpperBound, controlLowerBound)
 SetTimeBounds!(phase, timeUpperBound, timeLowerBound)
 SetTimeGuess!(phase, initialGuessTime, finalGuessTime)
 #SetLinearStateNoControlGuess!(phase, initialGuessState, finalGuessState)
-SetStateAndControlGuess!(phase, InitialGuessGenerator, initialGuessTime, finalGuessTime)
+SetStateAndControlGuess!(phase, (t) -> InitialGuessGenerator(t, xi, [-1.0, 0.0, 0.0, 0.5]), initialGuessTime, finalGuessTime)
 SetAlgebraicFunctionLowerBounds!(phase, algLB)
 SetAlgebraicFunctionUpperBounds!(phase, algUB)
 
@@ -179,16 +190,12 @@ Optimize!(traj)
 sol = GetSolution(traj)
 
 # Computing Halo Orbits
-xi      = [1.1599795702248494, 0.009720428035815552, -0.12401864915284157,
-            0.008477705130550553, -0.20786307954141953, -0.010841912833115475, 1.0] 
-xf      = [0.8484736688482315, 0.00506488863463682, 0.17343680487577373,
-            0.005241131023638693, 0.26343491250951045, -0.008541420325316247, 1.0]
 tsi     = (0.0, 14.2*24*3600/TU)
 tsf     = (0.0, 11.2*24*3600/TU)
 probi   = ODEProblem((du,u,p,t)->CR3BPDynamics!(du,u,p,0.0,t), xi, tsi, zeros(4))
 probf   = ODEProblem((du,u,p,t)->CR3BPDynamics!(du,u,p,0.0,t), xf, tsf, zeros(4))
-soli    = solve(probi; reltol=1e-9, abstol=1e-9)
-solf    = solve(probf; reltol=1e-9, abstol=1e-9)
+soli    = solve(probi, Vern9(); reltol=1e-14, abstol=1e-14)
+solf    = solve(probf, Vern9(); reltol=1e-14, abstol=1e-14)
 xsi     = [soli[i][1] for i in 1:length(soli.t)]
 ysi     = [soli[i][2] for i in 1:length(soli.t)]
 zsi     = [soli[i][3] for i in 1:length(soli.t)]
