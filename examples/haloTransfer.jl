@@ -144,12 +144,12 @@ pathFuncSet     = PathFunctionSet(dynFunc, algFunc)
 pointFuncSet    = PointFunctionSet(pointFunc, costFunc)
 
 # Mesh properties
-meshIntervalFractions = zeros(101)
+meshIntervalFractions = zeros(301)
 for i in 2:length(meshIntervalFractions) - 1
     meshIntervalFractions[i] = meshIntervalFractions[i - 1] + 1.0 / length(meshIntervalFractions)
 end
 meshIntervalFractions[end]  = 1.0
-meshIntervalNumPoints       = [3]
+meshIntervalNumPoints       = [1]
 
 # Instaitiate phase
 phase = Phase(ImplicitRK(), pathFuncSet, meshIntervalFractions, meshIntervalNumPoints)
@@ -219,8 +219,13 @@ mat"""
     figure()
     plot3(sol(1:11:end-12), sol(2:11:end-11), sol(3:11:end-10), "b")
     hold on
+    quiver3(sol(1:11:end-12), sol(2:11:end-11), sol(3:11:end-10), ...
+        sol(10:11:end-2).*sol(8:11:end-5), sol(10:11:end-2).*sol(8:11:end-4), sol(10:11:end-2).*sol(9:11:end-3),2)
     plot3(xsi, ysi, zsi)
     plot3(xsf, ysf, zsf)
+    xlabel("x, LU")
+    ylabel("y, LU")
+    zlabel("z, LU")
 
     axis equal 
     grid on
