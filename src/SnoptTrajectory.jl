@@ -34,6 +34,9 @@ function SnoptTrajectory(phaseSet::PhaseSet, pfSet::PointFunctionSet)
     # Set options for debugging
     #SetIntOption!(solver, "Verify level", 3)
     #SetIntOption!(solver, "Scale option", 2)
+    #SetFloatOption!(solver, "Major feasibility tolerance", 1.0e-8)
+    #SetFloatOption!(solver, "Minor feasibility tolerance", 1.0e-8)
+    #SetFloatOption!(solver, "Major optimality tolerance", 1.0e-8)
 
     SnoptTrajectory(data, solver)
 end

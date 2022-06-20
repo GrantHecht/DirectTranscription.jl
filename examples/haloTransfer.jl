@@ -130,9 +130,9 @@ costFunc    = PointFunction(Cost(), CostFunction!, 1,
                 [1], [true], [7], [4], [0])
                 
 # Set algebraic function upper and lower bounds         
-pointFuncLB = [0.0, 4.0*24*3600/TU, 1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.0108419128331154755, 1.0,
+pointFuncLB = [0.0,10.0*24*3600/TU, 1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.0108419128331154755, 1.0,
                 0.8484736688482315, 0.00506488863463682, 0.17343680487577373, 0.005241131023638693, 0.26343491250951045, -0.008541420325316247]
-pointFuncUB = [0.0, 20.0*24*3600/TU, 1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.0108419128331154755, 1.0,
+pointFuncUB = [0.0, 22.0*24*3600/TU, 1.1599795702248494, 0.009720428035815552, -0.12401864915284157, 0.008477705130550553, -0.20786307954141953, -0.0108419128331154755, 1.0,
                 0.8484736688482315, 0.00506488863463682, 0.17343680487577373, 0.005241131023638693, 0.26343491250951045, -0.008541420325316247]
 SetAlgebraicFunctionLowerBounds!(pointFunc, pointFuncLB)
 SetAlgebraicFunctionUpperBounds!(pointFunc, pointFuncUB)
@@ -144,7 +144,7 @@ pathFuncSet     = PathFunctionSet(dynFunc, algFunc)
 pointFuncSet    = PointFunctionSet(pointFunc, costFunc)
 
 # Mesh properties
-meshIntervalFractions = zeros(301)
+meshIntervalFractions = zeros(201)
 for i in 2:length(meshIntervalFractions) - 1
     meshIntervalFractions[i] = meshIntervalFractions[i - 1] + 1.0 / length(meshIntervalFractions)
 end
@@ -208,6 +208,7 @@ zsf     = [solf[i][3] for i in 1:length(solf.t)]
 
 # - With MATLAB
 mat"""
+    close all
     sol = $sol;
     xsi = $xsi;
     ysi = $ysi;
@@ -219,8 +220,8 @@ mat"""
     figure()
     plot3(sol(1:11:end-12), sol(2:11:end-11), sol(3:11:end-10), "b")
     hold on
-    quiver3(sol(1:11:end-12), sol(2:11:end-11), sol(3:11:end-10), ...
-        sol(10:11:end-2).*sol(8:11:end-5), sol(10:11:end-2).*sol(8:11:end-4), sol(10:11:end-2).*sol(9:11:end-3),2)
+    %quiver3(sol(1:11:end-12), sol(2:11:end-11), sol(3:11:end-10), ...
+    %    sol(10:11:end-2).*sol(8:11:end-5), sol(10:11:end-2).*sol(8:11:end-4), sol(10:11:end-2).*sol(9:11:end-3),2)
     plot3(xsi, ysi, zsi)
     plot3(xsf, ysf, zsf)
     xlabel("x, LU")
@@ -229,4 +230,7 @@ mat"""
 
     axis equal 
     grid on
+
+    save("/Users/granthec/Library/CloudStorage/Box-Box/UB GradSchool/Classes/Orbital Dynamics and Control/Grad Project/Data/" + ...
+        "haloTransfer.mat")
 """
