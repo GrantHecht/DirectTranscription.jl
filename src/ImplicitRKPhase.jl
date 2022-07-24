@@ -418,7 +418,7 @@ end
 
 function GetIntegralCostJacobian!(p::ImplicitRKPhase, grad)
     if HasCostFunctions(p.pathFuncSet)
-        p .+= p.tMan.QuadratureData.BMatrix*p.tMan.QuadratureData.DMatrix
+        grad .+= p.tMan.QuadratureData.BMatrix*p.tMan.QuadratureData.DMatrix
     end
     return nothing
 end
