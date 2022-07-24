@@ -48,11 +48,11 @@ function SnoptWrapper(func!::Function, x_L::Vector{Float64}, x_U::Vector{Float64
 
     # Check length of decision vector bounds 
     n = length(x_L)
-    n == length(x_U) ? () : error("In IpoptWrapper, x_L and x_U must be of the same length!")
+    n == length(x_U) ? () : error("In SnoptWrapper, x_L and x_U must be of the same length!")
 
     # Check length of constraint vector bounds
     m = length(g_L)
-    m == length(g_U) ? () : error("In IpoptWrapper, g_L and g_U must be of the same length")
+    m == length(g_U) ? () : error("In SnoptWrapper, g_L and g_U must be of the same length")
 
     # Allocate memory 
     x0      = Vector{Float64}(undef, n)
