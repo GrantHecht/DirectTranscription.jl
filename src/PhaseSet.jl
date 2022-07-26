@@ -51,7 +51,7 @@ function GetDecisionVector(ps::PhaseSet)
     idx0    = 1
     for i in 1:length(ps.pt)
         idxf = idx0 + GetNumberOfDecisionVariables(ps.pt[i]) - 1
-        dv[idx0:idxf] .= ps.pt[i].decisionVector.decisionVector
+        dv[idx0:idxf] .= GetDecisionVector(ps.pt[i])
     end
     return dv
 end

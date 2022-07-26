@@ -1,0 +1,16 @@
+List of methods a phase must have implemented:
+
+If not using decisionVector class provided:
+    GetNumberOfDecisionVariables(phase)
+    CheckIfInitialized!(phase)
+    SetDecisionVector!(phase, x)
+    GetDecisionVector(phase)
+    PrepareForEvaluation!(phase)
+
+PrepareForEvaluation!(phase)
+
+SetPhaseNumber!(phase, num)
+
+CheckIfInitialized!(phase)
+
+

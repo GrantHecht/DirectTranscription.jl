@@ -5,8 +5,6 @@ using Snopt
 using DirectTranscription
 using DifferentialEquations
 using MATLAB
-#using Plots
-#plotlyjs()
 
 # CR3BP Constants
 μ       = 1.21506038e-2         
@@ -144,7 +142,7 @@ pathFuncSet     = PathFunctionSet(dynFunc, algFunc)
 pointFuncSet    = PointFunctionSet(pointFunc, costFunc)
 
 # Mesh properties
-meshIntervalFractions = zeros(201)
+meshIntervalFractions = zeros(200)
 for i in 2:length(meshIntervalFractions) - 1
     meshIntervalFractions[i] = meshIntervalFractions[i - 1] + 1.0 / length(meshIntervalFractions)
 end
@@ -179,13 +177,12 @@ SetStateBounds!(phase, stateUpperBound, stateLowerBound)
 SetControlBounds!(phase, controlUpperBound, controlLowerBound)
 SetTimeBounds!(phase, timeUpperBound, timeLowerBound)
 SetTimeGuess!(phase, initialGuessTime, finalGuessTime)
-#SetLinearStateNoControlGuess!(phase, initialGuessState, finalGuessState)
 SetStateAndControlGuess!(phase, (t) -> InitialGuessGenerator(t, xi, [-1.0, 0.0, 0.0, 0.5]), initialGuessTime, finalGuessTime)
 SetAlgebraicFunctionLowerBounds!(phase, algLB)
 SetAlgebraicFunctionUpperBounds!(phase, algUB)
 
-traj = SnoptTrajectory(phase, pointFuncSet)
-DirectTranscription.EvaluateFunctions!(traj.data)
+#traj = SnoptTrajectory(phase, pointFuncSet)
+traj = IpoptTrajectory(phase, pointFuncSet)
 Optimize!(traj)
 sol = GetSolution(traj)
 

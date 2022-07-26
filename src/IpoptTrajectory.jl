@@ -9,7 +9,8 @@ end
 
 # Ipopt trajectory constructors
 Trajectory(phaseSet::PhaseSet, pfSet::PointFunctionSet) = IpoptTrajectory(phaseSet, pfSet)
-Trajectory(phase::Phase, pfSet::PointFunctionSet) = Trajectory(PhaseSet(phase), pfSet)
+Trajectory(phase::Phase, pfSet::PointFunctionSet)       = Trajectory(PhaseSet(phase), pfSet)
+IpoptTrajectory(phase::Phase, pfSet::PointFunctionSet)  = Trajectory(PhaseSet(phase), pfSet)
 
 function IpoptTrajectory(phaseSet::PhaseSet, pfSet::PointFunctionSet)
     data     = TrajectoryData(phaseSet, pfSet) 

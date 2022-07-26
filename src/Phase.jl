@@ -28,6 +28,9 @@ function SetDecisionVector!(p::Phase, x)
     return nothing
 end
 
+# Function to get decision vector
+GetDecisionVector(p::Phase) = p.decisionVector.decisionVector
+
 # Prepare for function evaluation
 PrepareForEvaluation!(p::Phase)     = PrepareForEvaluation!(p.tMan, p.decisionVector)
 
