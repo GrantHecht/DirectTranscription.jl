@@ -56,6 +56,18 @@ function PointFunction(type::FunctionType, func!::Function, stateJac!::Union{Fun
         staticSP, timeSP)
 end
 
+# Get point function phase list
+GetPhaseList(pf::PointFunction) = pf.pointPhaseList
+
+# Get point function time list
+GetTimeList(pf::PointFunction) = pf.pointTimeList
+
+# Get lower bounds
+GetLowerBounds(pf::PointFunction) = pf.LB
+
+# Get upper bounds
+GetUpperBounds(pf::PointFunction) = pf.UB
+
 # Method to set function upper and lower bounds
 function SetAlgebraicFunctionLowerBounds!(pf::PointFunction{Algebraic}, LB::Vector{A}) where {A <: Number}
     # Check that the LB vector is the correct length

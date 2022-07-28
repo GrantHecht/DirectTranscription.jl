@@ -142,7 +142,7 @@ pathFuncSet     = PathFunctionSet(dynFunc, algFunc)
 pointFuncSet    = PointFunctionSet(pointFunc, costFunc)
 
 # Mesh properties
-meshIntervalFractions = zeros(200)
+meshIntervalFractions = zeros(201)
 for i in 2:length(meshIntervalFractions) - 1
     meshIntervalFractions[i] = meshIntervalFractions[i - 1] + 1.0 / length(meshIntervalFractions)
 end
@@ -181,8 +181,8 @@ SetStateAndControlGuess!(phase, (t) -> InitialGuessGenerator(t, xi, [-1.0, 0.0, 
 SetAlgebraicFunctionLowerBounds!(phase, algLB)
 SetAlgebraicFunctionUpperBounds!(phase, algUB)
 
-#traj = SnoptTrajectory(phase, pointFuncSet)
-traj = IpoptTrajectory(phase, pointFuncSet)
+traj = SnoptTrajectory(phase, pointFuncSet)
+#traj = IpoptTrajectory(phase, pointFuncSet)
 Optimize!(traj)
 sol = GetSolution(traj)
 

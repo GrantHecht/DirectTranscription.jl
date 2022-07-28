@@ -22,7 +22,7 @@ struct TrajectoryData
 end
 
 # Trajectory Data constructor
-function TrajectoryData(phaseSet, pfSet)
+function TrajectoryData(phaseSet::PhaseSet, pfSet::PointFunctionSet)
     # Prepare phases for evaluation
     for i in 1:length(phaseSet.pt)
         PrepareForEvaluation!(phaseSet.pt[i])
@@ -55,19 +55,19 @@ function TrajectoryData(phaseSet, pfSet)
     maxNTimes   = 0
     gLB         = Vector{Float64}(undef, 0)
     gUB         = Vector{Float64}(undef, 0)
-    for i in 1:length(pfSet.pft)
+    for i in eachindex(pfSet.pft)
         # Get function information
-        pointPhaseList  = pfSet.pft[i].pointPhaseList
-        pointTimeList   = pfSet.pft[i].pointTimeList
-        nFuncs          = pfSet.pft[i].nFuncs
-        nStates         = pfSet.pft[i].nStates
-        nControls       = pfSet.pft[i].nControls
-        nStatic         = pfSet.pft[i].nStatic
+        pointPhaseList  = GetPhaseList(pfSet, i)
+        pointTimeList   = GetTimeList(pfSet, i)
+        nFuncs          = GetNumberOfFunctions(pfSet, i)
+        nStates         = GetNumberOfStates(pfSet, i)
+        nControls       = GetNumberOfControls(pfSet, i)
+        nStatic         = GetNumberOfStatics(pfSet, i)
 
-        if GetFunctionType(pfSet.pft[i]) <: Algebraic
+        if GetFunctionType(pfSet, i) <: Algebraic
             # Get function bounds
-            gLB             = vcat(gLB, pfSet.pft[i].LB)
-            gUB             = vcat(gUB, pfSet.pft[i].UB)
+            gLB             = vcat(gLB, GetLowerBounds(pfSet, i))
+            gUB             = vcat(gUB, GetUpperBounds(pfSet, i))
         end
 
         # Check for max parameters
@@ -80,14 +80,14 @@ function TrajectoryData(phaseSet, pfSet)
         maxNTimes       < length(pointTimeList) ? maxNTimes = length(pointTimeList) : ()
 
         # State jacobian sparsity
-        stateSP         = GetJacobianSparsity(State(), pfSet.pft[i])
+        stateSP         = GetJacobianSparsity(State(), pfSet[i])
         if nnz(stateSP) > 0
             r, c, v         = findnz(stateSP)
 
             # Shift column indecies
             stateIndecies = GetStateDecisionVectorIndecies(phaseSet, pointPhaseList, pointTimeList)
-            for j in 1:length(c)
-                for k in 1:length(pointPhaseList)
+            for j in eachindex(c)
+                for k in eachindex(pointPhaseList)
                     if k == 1 
                         if c[j] <= nStates[1]
                             c[j] = stateIndecies[1][c[j]]
@@ -101,9 +101,10 @@ function TrajectoryData(phaseSet, pfSet)
                 end
             end
 
-            if GetFunctionType(pfSet.pft[i]) <: Algebraic
+            # Place in colomn and row vectors
+            if GetFunctionType(pfSet, i) <: Algebraic
                 # Add to full jacobian matrix
-                for j in 1:length(r)
+                for j in eachindex(r)
                     # Increment index counter
                     algIdx += 1
 
@@ -111,9 +112,9 @@ function TrajectoryData(phaseSet, pfSet)
                     algRows[algIdx] = algR0 + r[j]
                     algCols[algIdx] = c[j] 
                 end
-            elseif GetFunctionType(pfSet.pft[i]) <: Cost
+            elseif GetFunctionType(pfSet, i) <: Cost
                 # Add to full jacobian matrix
-                for j in 1:length(r)
+                for j in eachindex(r)
                     # Increment index counter
                     costIdx += 1
 
@@ -125,14 +126,14 @@ function TrajectoryData(phaseSet, pfSet)
         end
 
         # Control jacobian sparsity
-        controlSP       = GetJacobianSparsity(Control(), pfSet.pft[i])
+        controlSP       = GetJacobianSparsity(Control(), pfSet[i])
         if nnz(controlSP) > 0
             r, c, v         = findnz(controlSP)
 
             # Shift column indecies
             controlIndecies = GetControlDecisionVectorIndecies(phaseSet, pointPhaseList, pointTimeList)
-            for j in 1:length(c)
-                for k in 1:length(pointPhaseList)
+            for j in eachindex(c)
+                for k in eachindex(pointPhaseList)
                     if k == 1 
                         if c[j] <= nControls[1]
                             c[j] = controlIndecies[k][c[j]]
@@ -146,9 +147,10 @@ function TrajectoryData(phaseSet, pfSet)
                 end
             end
 
-            if GetFunctionType(pfSet.pft[i]) <: Algebraic
+            # Fill row and column vectors
+            if GetFunctionType(pfSet, i) <: Algebraic
                 # Add to full jacobian matrix
-                for j in 1:length(r)
+                for j in eachindex(r)
                     # Increment index counter
                     algIdx += 1
 
@@ -156,9 +158,9 @@ function TrajectoryData(phaseSet, pfSet)
                     algRows[algIdx] = algR0 + r[j]
                     algCols[algIdx] = c[j] 
                 end
-            elseif GetFunctionType(pfSet.pft[i]) <: Cost
+            elseif GetFunctionType(pfSet, i) <: Cost
                 # Add to full jacobian matrix
-                for j in 1:length(r)
+                for j in eachindex(r)
                     # Increment index counter
                     costIdx += 1
 
@@ -170,14 +172,14 @@ function TrajectoryData(phaseSet, pfSet)
         end
 
         # Static parameter sparsity
-        staticSP    = GetJacobianSparsity(Static(), pfSet.pft[i])
+        staticSP    = GetJacobianSparsity(Static(), pfSet[i])
         if nnz(staticSP) > 0
             r, c, v     = findnz(staticSP)
 
             # Shift column indecies
             staticIndecies  = GetStaticDecisionVectorIndecies(phaseSet, pointPhaseList)
-            for j in 1:length(c)
-                for k in 1:length(staticIndecies)
+            for j in eachindex(c)
+                for k in eachindex(staticIndecies)
                     if k == 1
                         if c[j] <= nStatic[1]
                             c[j] = staticIndecies[k][c[j]]
@@ -191,9 +193,10 @@ function TrajectoryData(phaseSet, pfSet)
                 end
             end
 
-            if GetFunctionType(pfSet.pft[i]) <: Algebraic
+            # Fill row and column vectors
+            if GetFunctionType(pfSet, i) <: Algebraic
                 # Add to full jacobian matrix
-                for j in 1:length(r)
+                for j in eachindex(r)
                     # Increment index counter 
                     algIdx += 1
 
@@ -201,9 +204,9 @@ function TrajectoryData(phaseSet, pfSet)
                     algRows[algIdx] = algR0 + r[j]
                     algCols[algIdx] = c[j]
                 end
-            elseif GetFunctionType(pfSet.pft[i]) <: Cost
+            elseif GetFunctionType(pfSet, i) <: Cost
                 # Add to full jacobian matrix
-                for j in 1:length(r)
+                for j in eachindex(r)
                     # Increment index counter
                     costIdx += 1
 
@@ -215,23 +218,23 @@ function TrajectoryData(phaseSet, pfSet)
         end
 
         # Time jacobian sparsity
-        timeSP      = GetJacobianSparsity(Time(), pfSet.pft[i])
+        timeSP      = GetJacobianSparsity(Time(), pfSet[i])
         if nnz(timeSP) > 0
             r, c, v     = findnz(timeSP)
 
             # Shift column indecies
             timeIndecies = GetTimeDecisionVectorIndecies(phaseSet, pointPhaseList, pointTimeList)
-            for j in 1:length(c)
-                for k in 1:length(pointPhaseList)
+            for j in eachindex(c)
+                for k in eachindex(pointPhaseList)
                     if c[j] == k
                         c[j] = timeIndecies[k]
                     end
                 end
             end
 
-            if GetFunctionType(pfSet.pft[i]) <: Algebraic
+            if GetFunctionType(pfSet, i) <: Algebraic
                 # Add to full jacobian matrix
-                for j in 1:length(r)
+                for j in eachindex(r)
                     # Increment index counter
                     algIdx += 1
 
@@ -239,9 +242,9 @@ function TrajectoryData(phaseSet, pfSet)
                     algRows[algIdx] = algR0 + r[j]
                     algCols[algIdx] = c[j] 
                 end
-            elseif GetFunctionType(pfSet.pft[i]) <: Cost
+            elseif GetFunctionType(pfSet, i) <: Cost
                 # Add to full jacobian matrix
-                for j in 1:length(r)
+                for j in eachindex(r)
                     # Increment index counter
                     costIdx += 1
 
@@ -252,6 +255,8 @@ function TrajectoryData(phaseSet, pfSet)
             end
         end
     end
+
+    # Initialize D matrix sparsity patterns
     InitializeDMatrixSparsity!(conPointFuncData, algRows, algCols,
         GetNumberOfAlgebraicFunctions(pfSet), 
         GetNumberOfDecisionVariables(phaseSet))
@@ -312,34 +317,32 @@ function EvaluatePointFunctions!(td::TrajectoryData)
     # Q-Vector index initial index for current point function
     algIdx0     = 1
     costIdx0    = 1
-    for i in 1:length(td.pfSet.pft)
+    for i in eachindex(td.pfSet)
         # Grab point phase and time lists
-        pointPhaseList  = td.pfSet.pft[i].pointPhaseList
-        pointTimeList   = td.pfSet.pft[i].pointTimeList
+        pointPhaseList  = GetPhaseList(td.pfSet, i)
+        pointTimeList   = GetTimeList(td.pfSet, i)
 
         # Get states, controls, statics, and times
         GetStateVector!(td.states, td.phaseSet, pointPhaseList, pointTimeList)
         GetControlVector!(td.controls, td.phaseSet, pointPhaseList, pointTimeList)
         GetStaticVector!(td.static, td.phaseSet, pointPhaseList)
         GetTimeVector!(td.times, td.phaseSet, pointPhaseList, pointTimeList)
-        if GetFunctionType(td.pfSet.pft[i]) <: Algebraic
+        if GetFunctionType(td.pfSet, i) <: Algebraic
             # Compute final QVector idx
-            idxf = algIdx0 + td.pfSet.pft[i].nFuncs - 1
+            idxf = algIdx0 + GetNumberOfFunctions(td.pfSet, i) - 1
             
             # Evaluate function
-            EvaluateFunction(td.pfSet.pft[i], 
-                view(td.constraintPointFunctionData.qVector, algIdx0:idxf),
+            EvaluateFunction(td.pfSet[i], view(td.constraintPointFunctionData.qVector, algIdx0:idxf), 
                 td.states, td.controls, td.static, td.times)
 
             # Update initial algebraic QVector idx
             algIdx0 += 1
-        elseif GetFunctionType(td.pfSet.pft[i]) <: Cost
+        elseif GetFunctionType(td.pfSet, i) <: Cost
             # Compute final QVector idx
-            idxf = costIdx0 + td.pfSet.pft[i].nFuncs - 1
+            idxf = costIdx0 + GetNumberOfFunctions(td.pfSet, i) - 1
 
             # Evaluate function
-            EvaluateFunction(td.pfSet.pft[i],
-                view(td.costPointFunctionData.qVector, costIdx0:idxf),
+            EvaluateFunction(td.pfSet[i], view(td.costPointFunctionData.qVector, costIdx0:idxf),
                 td.states, td.controls, td.static, td.times)
 
             # Update initial cost QVector idx
@@ -356,8 +359,8 @@ function EvaluatePointJacobians!(td::TrajectoryData)
     costIdx0    = 1
     for i in 1:length(td.pfSet.pft)
         # Grab point phase and time lists
-        pointPhaseList = td.pfSet.pft[i].pointPhaseList 
-        pointTimeList  = td.pfSet.pft[i].pointTimeList
+        pointPhaseList = GetPhaseList(td.pfSet, i)
+        pointTimeList  = GetTimeList(td.pfSet, i)
 
         # Get states, controls, statics, and times
         GetStateVector!(td.states, td.phaseSet, pointPhaseList, pointTimeList)
@@ -366,28 +369,32 @@ function EvaluatePointJacobians!(td::TrajectoryData)
         GetTimeVector!(td.times, td.phaseSet, pointPhaseList, pointTimeList)
 
         # Evaluate Jacobians
-        nStates     = sum(td.pfSet.pft[i].nStates)
-        nControls   = sum(td.pfSet.pft[i].nControls)
-        nStatic     = sum(td.pfSet.pft[i].nStatic)
+        nStates     = sum(GetNumberOfStates(td.pfSet, i))
+        nControls   = sum(GetNumberOfControls(td.pfSet, i))
+        nStatic     = sum(GetNumberOfStatics(td.pfSet, i))
         nTimes      = length(pointTimeList)
-        EvaluateJacobians!(td.pfSet.pft[i], view(td.states, 1:nStates), view(td.controls, 1:nControls), 
+        EvaluateJacobians!(td.pfSet[i], view(td.states, 1:nStates), view(td.controls, 1:nControls), 
             view(td.static, 1:nStatic), view(td.times, 1:nTimes))
 
         # Get Jacobians
-        stateJac    = GetJacobian(State(), td.pfSet.pft[i])
-        controlJac  = GetJacobian(Control(), td.pfSet.pft[i])
-        staticJac   = GetJacobian(Static(), td.pfSet.pft[i])
-        timeJac     = GetJacobian(Time(), td.pfSet.pft[i])
+        stateJac    = GetJacobian(State(), td.pfSet[i])
+        stateSP     = GetJacobianSparsity(State(), td.pfSet[i])
+        controlJac  = GetJacobian(Control(), td.pfSet[i])
+        controlSP   = GetJacobianSparsity(Control(), td.pfSet[i])
+        staticJac   = GetJacobian(Static(), td.pfSet[i])
+        staticSP    = GetJacobianSparsity(Static(), td.pfSet[i])
+        timeJac     = GetJacobian(Time(), td.pfSet[i])
+        timeSP      = GetJacobianSparsity(Time(), td.pfSet[i])
 
         # Get correct function data object and final row index
-        if GetFunctionType(td.pfSet.pft[i]) <: Algebraic
+        if GetFunctionType(td.pfSet, i) <: Algebraic
             fd      = td.constraintPointFunctionData
             idx0    = algIdx0
-            idxf    = algIdx0 + td.pfSet.pft[i].nFuncs - 1
+            idxf    = algIdx0 + GetNumberOfFunctions(td.pfSet, i) - 1
         else
             fd      = td.costPointFunctionData
             idx0    = costIdx0
-            idxf    = costIdx0 + td.pfSet.pft[i].nFuncs - 1
+            idxf    = costIdx0 + GetNumberOfFunctions(td.pfSet, i) - 1
         end
 
         # Get parameter indecies (Don't like calling these here! Each allocates a vector.)
@@ -396,37 +403,52 @@ function EvaluatePointJacobians!(td::TrajectoryData)
         staticIndecies  = GetStaticDecisionVectorIndecies(td.phaseSet, pointPhaseList)
         timeIndecies    = GetTimeDecisionVectorIndecies(td.phaseSet, pointPhaseList, pointTimeList)
 
-        # Initial colomn index trackers for point function jacobians
-        stateIdx0   = 1
-        controlIdx0 = 1
-        staticIdx0  = 1
-        timeIdx     = 1
-
         # Set Jacobian Values
-        for i in 1:length(stateIndecies)
+        for i in eachindex(stateIndecies)
             if length(stateIndecies[i]) > 0
-                stateIdxf   = stateIdx0 + length(stateIndecies[i]) - 1
-                dView       = GetDMatrixView(fd, idx0:idxf, stateIndecies[i])
-                dView       .= view(stateJac, :, stateIdx0:stateIdxf)
-                stateIdx0   = stateIdxf + 1
+                rs          = rowvals(stateSP)
+                @inbounds for j in eachindex(stateIndecies[i])
+                    localCol = (i == 1 ? 0 : length(stateIndecies[i - 1])) + j
+                    for k in nzrange(stateSP, localCol)
+                        row = idx0 + rs[k] - 1
+                        col = stateIndecies[i][j]
+                        fd.DMatrix[row, col] = stateJac[rs[k], localCol]
+                    end
+                end
             end
 
             if length(controlIndecies[i]) > 0
-                controlIdxf = controlIdx0 + length(controlIndecies[i]) - 1
-                dView       = GetDMatrixView(fd, idx0:idxf, controlIndecies[i])
-                dView       .= view(controlJac, :, controlIdx0:controlIdxf)
-                controlIdx0 = controlIdxf + 1
+                rs          = rowvals(controlSP)
+                @inbounds for j in eachindex(controlIndecies[i])
+                    localCol = (i == 1 ? 0 : length(controlIndecies[i - 1])) + j
+                    for k in nzrange(controlSP, localCol)
+                        row = idx0 + rs[k] - 1
+                        col = controlIndecies[i][j]
+                        fd.DMatrix[row, col] = controlJac[rs[k], localCol]
+                    end
+                end
             end
 
-            dView       = GetDMatrixView(fd, idx0:idxf, timeIndecies[i])
-            dView       .= view(timeJac, :, timeIdx)
-            timeIdx     += 1
+            rs  = rowvals(timeSP)
+            @inbounds for j in eachindex(timeIndecies[i])
+                localCol = (i == 1 ? 0 : length(timeIndecies[i - 1])) + j
+                for k in nzrange(timeSP, localCol)
+                    row = idx0 + rs[k] - 1
+                    col = timeIndecies[i][j]
+                    fd.DMatrix[row, col] = timeJac[rs[k], localCol]
+                end
+            end
 
             if i <= length(staticIndecies) && length(staticIndecies[i]) > 0
-                staticIdxf  = staticIdx0 + length(staticIndecies[i]) - 1
-                dView       = GetDMatrixView(fd, idx0:idxf, staticIndecies[i])
-                dView       .= view(staticJac, :, staticIdx0:staticIdxf)
-                staticIdx0  = staticIdxf + 1
+                rs = rowvals(staticSP)
+                @inbounds for j in eachindex(staticIndecies[i])
+                    localCol = (i == 1 ? 0 : length(staticIndecies[i - 1])) + j
+                    for k in nzrange(staticSP, localCol)
+                        row = idx0 + rs[k] - 1
+                        col = staticIndecies[i][j]
+                        fd.DMatrix[row, col] = staticJac[rs[k], localCol]
+                    end
+                end
             end
         end
 
