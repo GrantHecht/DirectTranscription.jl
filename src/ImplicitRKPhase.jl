@@ -445,3 +445,11 @@ function GetNonlinearPartPhaseConstraints!(p::ImplicitRKPhase, g)
     g[nDefects + 1:end] .= p.tMan.AlgebraicData.qVector
     return nothing
 end
+
+# Functions to get transcription Jacobian matricies
+GetTranscriptionAMatrix(p::ImplicitRKPhase) = p.tMan.NLPData.AMatrix
+GetTranscriptionBMatrix(p::ImplicitRKPhase) = p.tMan.NLPData.BMatrix
+GetTranscriptionDMatrix(p::ImplicitRKPhase) = p.tMan.NLPData.DMatrix
+
+# Functions to get path constriant Jacobian matricies
+GetPathDMatrix(p::ImplicitRKPhase) = p.tMan.AlgebraicData.DMatrix

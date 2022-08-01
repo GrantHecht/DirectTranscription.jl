@@ -13,6 +13,7 @@ function SnoptTrajectory(phaseSet::PhaseSet, pfSet::PointFunctionSet)
     data = TrajectoryData(phaseSet, pfSet)
 
     # Prepare information to construct SnoptWrapper
+    SnoptInitializeNonlinearJacobianSparsity(data)
     numNz    = SnoptGetNumberOfNonlinearJacobianNonZeros(data)
     rs, cs   = SnoptGetNonlinearPartJacobianSparsity(data)
     A        = SnoptGetFullNLPLinearPartJacobian(data)

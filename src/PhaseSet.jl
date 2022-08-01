@@ -31,6 +31,12 @@ function PhaseSet(pt...)
     return PhaseSet{typeof(pt)}(pt)
 end
 
+# Base.getindex Returns ith phase from phase set
+Base.getindex(ps::PhaseSet, i) = ps.pt[i]
+
+# Base.eachindex Returns each index in phase set 
+Base.eachindex(ps::PhaseSet) = eachindex(ps.pt)
+
 # Check if phases are initialized
 function CheckIfInitialized!(ps::PhaseSet)
     flag = true
